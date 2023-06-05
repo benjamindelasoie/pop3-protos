@@ -9,25 +9,31 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include "logger.h"
+#include "tcpServerUtil.h"
 
 int main(int argc, char *argv[]) {
+  if (argc != 2) {
+		log(FATAL, "usage: %s <Server Port>", argv[0]);
+	}
 
-  if (argc != 2) { 
-    fprintf(stderr, "Parameter(s): <Server Port/Service>");
-    return 1;
-  }
+	char * servPort = argv[1];
 
-  char *service = argv[1]; // First arg:  local port
+	int servSock = runServer();
+	if (servSock < 0 ) {
+		log(ERROR, "couldn't create server socket")
+	}
 
-  // Construct the server address structure
-  struct addrinfo * addrCriteria;                   // Criteria for address
-  memset(&addrCriteria, 0, sizeof(addrCriteria)); // Zero out structure
-  addrCriteria.ai_family = AF_UNSPEC;             // Any address family
-  addrCriteria.ai_flags = AI_PASSIVE;             // Accept on any address/port
-  addrCriteria.ai_socktype = SOCK_DGRAM;          // Only datagram sockets
-  addrCriteria.ai_protocol = IPPROTO_UDP;         // Only UDP protocol
-
-  printf("hello world!\n");
+	while (1) { // Run forever
+		// Wait for a client to connect
+		int clntSock = acceptConnection(servSock);
+		if (clntSock < 0) {
+			log(ERROR, "accept() failed");
+    }
+		else {
+			handleTCPEchoClient(clntSock);
+		}
+	}
 
   return 0;
 

@@ -9,6 +9,7 @@
 
 #define MAXPENDING 5 // Maximum outstanding connection requests
 #define BUFSIZE 256
+#define DEFAULT_PORT 110
 #define MAX_ADDR_BUFFER 128
 
 static char addrBuffer[MAX_ADDR_BUFFER];
@@ -16,7 +17,7 @@ static char addrBuffer[MAX_ADDR_BUFFER];
  ** Se encarga de resolver el número de puerto para service (puede ser un string con el numero o el nombre del servicio)
  ** y crear el socket pasivo, para que escuche en cualquier IP, ya sea v4 o v6
  */
-int setupTCPServerSocket(const char *service) {
+int runServer() {
 	// Construct the server address structure
 	struct addrinfo addrCriteria;                   // Criteria for address match
 	memset(&addrCriteria, 0, sizeof(addrCriteria)); // Zero out structure
@@ -24,7 +25,6 @@ int setupTCPServerSocket(const char *service) {
 	addrCriteria.ai_flags = AI_PASSIVE;             // Accept on any address/port
 	addrCriteria.ai_socktype = SOCK_STREAM;         // Only stream sockets
 	addrCriteria.ai_protocol = IPPROTO_TCP;         // Only TCP protocol
-
 	struct addrinfo *servAddr; 			// List of server addresses
 	int rtnVal = getaddrinfo(NULL, service, &addrCriteria, &servAddr);
 	if (rtnVal != 0) {
@@ -66,7 +66,7 @@ int setupTCPServerSocket(const char *service) {
 	return servSock;
 }
 
-int acceptTCPConnection(int servSock) {
+int acceptConnection(int servSock) {
 	struct sockaddr_storage clntAddr; // Client address
 	// Set length of client address structure (in-out parameter)
 	socklen_t clntAddrLen = sizeof(clntAddr);
@@ -85,7 +85,7 @@ int acceptTCPConnection(int servSock) {
 	return clntSock;
 }
 
-int handleTCPEchoClient(int clntSocket) {
+int handleConnection(int clntSocket) {
 	char buffer[BUFSIZE]; // Buffer for echo string
 	// Receive message from client
 	ssize_t numBytesRcvd = recv(clntSocket, buffer, BUFSIZE, 0);

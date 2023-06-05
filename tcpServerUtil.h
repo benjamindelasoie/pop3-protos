@@ -1,17 +1,17 @@
-#ifndef TCPSERVERUTIL_H_
-#define TCPSERVERUTIL_H_
+#ifndef SERVER_H
+#define SERVER_H
 
 #include <stdio.h>
 #include <sys/socket.h>
 
 
 // Create, bind, and listen a new TCP server socket
-int setupTCPServerSocket(const char *service);
+int runServer();
 
 // Accept a new TCP connection on a server socket
-int acceptTCPConnection(int servSock);
+int acceptConnection(int servSocket);
 
 // Handle new TCP client
-void handleTCPEchoClient(int clntSocket);
+void handleConnection(int clntSocket);
 
 #endif 
