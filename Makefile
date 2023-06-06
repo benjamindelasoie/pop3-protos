@@ -1,6 +1,7 @@
 # compiler flags:
 #  -Wall turns on most, but not all, compiler warnings
 CFLAGS  = -std=c99 -lpthread -Wall
+CC = gcc
 
 # the build target executable:
 TARGET = pop3.out
