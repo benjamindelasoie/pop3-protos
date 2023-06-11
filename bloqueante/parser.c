@@ -27,6 +27,13 @@ struct pop3_command * fill_command(char * buffer) {
         return NULL;
     }
 
+    if (buffer[buff_index] == ' ') {
+        //consume space
+        buff_index++;
+    } else {
+        return command;
+    }
+
     int j = 0;
     for(; buffer[buff_index] != ' ' && buffer[buff_index] != '\r' && j < MAX_ARG_LENGTH; j++, buff_index++) {
         command->argument[j] = buffer[buff_index];
