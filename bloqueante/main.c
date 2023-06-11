@@ -98,30 +98,34 @@ int main(int argc, char *argv[]) {
             memset(&client_buffers, 0, sizeof(client_buffers));
             ssize_t bytes_recieved = 0;
             
-            while ((bytes_recieved = recv(client_socket, &(client_buffers.recieve[client_buffers.recieve_index]), BUFSIZE-client_buffers.recieve_index, 0)) > 0) {
-                log(DEBUG, "%ld bytes recieved", bytes_recieved);
-                log(DEBUG, "buffer: %s", client_buffers.recieve);
-                int ready = read_line(&client_buffers);
-                log(DEBUG, "parse_buffer: %s", client_buffers.parser);
-                log(DEBUG, "ready: %d", ready);
-                if (ready == 1) {
-                    pop3_command * command = fill_command(client_buffers.parser);
-                    client_buffers.parser_index = 0;
-                    ssize_t num_bytes_sent;
-                    if (command != NULL) {
-                        int ok = parse(command, authentication_commands, authentication_command_count);
-                        if (ok) {
-                            num_bytes_sent = send(client_socket, "+OK!\r\n", 7, 0);
+            while ((bytes_recieved = recv(client_socket, client_buffers.recieve, BUFSIZE, 0)) > 0) {
+                while (bytes_recieved > 0) {
+                    log(DEBUG, "%ld bytes recieved", bytes_recieved);
+                    log(DEBUG, "buffer: %s", client_buffers.recieve);
+                    int ready = read_line(&client_buffers);
+                    bytes_recieved -= client_buffers.parser_index;
+                    log(DEBUG, "parse_buffer: %s", client_buffers.parser);
+                    log(DEBUG, "ready: %d", ready);
+                    if (ready == 1) {
+                        pop3_command * command = fill_command(client_buffers.parser);
+                        client_buffers.parser_index = 0;
+                        ssize_t num_bytes_sent;
+                        if (command != NULL) {
+                            int ok = parse(command, authentication_commands, authentication_command_count);
+                            if (ok) {
+                                num_bytes_sent = send(client_socket, "+OK!\r\n", 7, 0);
+                            } else {
+                                num_bytes_sent = send(client_socket, "-ERR!\r\n", 8, 0);
+                            }
                         } else {
                             num_bytes_sent = send(client_socket, "-ERR!\r\n", 8, 0);
                         }
-                    } else {
-                        num_bytes_sent = send(client_socket, "-ERR!\r\n", 8, 0);
-                    }
-                    if (num_bytes_sent < 0) {
-                        log(ERROR, "%s", "send() failed");
+                        if (num_bytes_sent < 0) {
+                            log(ERROR, "%s", "send() failed");
+                        }
                     }
                 }
+                client_buffers.recieve_index = 0;
             }
             if (bytes_recieved < 0) {
                 log(ERROR, "%s", "recv() failed");
@@ -149,6 +153,7 @@ ssize_t read_line(struct buffers * buffers) {
         } else if (c == '\n') {
             if (crlf) {
                 buffers->recieve_index++;
+                buffers->parser_index++;
                 return 1;
             } else {
                 crlf = 0;
