@@ -13,15 +13,7 @@
 #include <netinet/tcp.h>
 #include "logger.h"
 #include "parser.h"
-
-#define BUFSIZE 256
-
-typedef struct buffers {
-    char recieve[BUFSIZE+1];
-    char parser[BUFSIZE+1];
-    int recieve_index;
-    int parser_index;
-} buffers;
+#include "clients.h"        
 
 static bool done = false;
 
@@ -94,24 +86,31 @@ int main(int argc, char *argv[]) {
             return -1;
         } else {
             log(DEBUG, "Client %d connected", client_socket);
-            buffers client_buffers;
-            memset(&client_buffers, 0, sizeof(client_buffers));
+            client client;
+            memset(&client, 0, sizeof(client));
             ssize_t bytes_recieved = 0;
-            
-            while ((bytes_recieved = recv(client_socket, client_buffers.recieve, BUFSIZE, 0)) > 0) {
+
+            client.state = GREETING;
+            send(client_socket,"+OK SERVER READY\r\n",19,0);
+            client.state = AUTHORIZATION;
+            client.available_commands = authorization_commands;
+            client.available_commands_count = authorization_command_count;
+
+
+            while ((bytes_recieved = recv(client_socket, client.buffers.recieve, BUFSIZE, 0)) > 0) {
                 while (bytes_recieved > 0) {
-                    log(DEBUG, "%ld bytes recieved", bytes_recieved);
-                    log(DEBUG, "buffer: %s", client_buffers.recieve);
-                    int ready = read_line(&client_buffers);
-                    bytes_recieved -= client_buffers.parser_index;
-                    log(DEBUG, "parse_buffer: %s", client_buffers.parser);
-                    log(DEBUG, "ready: %d", ready);
+                    // log(DEBUG, "%ld bytes recieved", bytes_recieved);
+                    // log(DEBUG, "buffer: %s", client_buffers.recieve);
+                    int ready = read_line(&client.buffers);
+                    bytes_recieved -= client.buffers.parser_index;
+                    // log(DEBUG, "parse_buffer: %s", client_buffers.parser);
+                    // log(DEBUG, "ready: %d", ready);
                     if (ready == 1) {
-                        pop3_command * command = fill_command(client_buffers.parser);
-                        client_buffers.parser_index = 0;
+                        pop3_command * command = fill_command(client.buffers.parser);
+                        client.buffers.parser_index = 0;
                         ssize_t num_bytes_sent;
                         if (command != NULL) {
-                            int ok = parse(command, authentication_commands, authentication_command_count);
+                            int ok = parse(command, &client);
                             if (ok) {
                                 num_bytes_sent = send(client_socket, "+OK!\r\n", 7, 0);
                             } else {
@@ -125,7 +124,7 @@ int main(int argc, char *argv[]) {
                         }
                     }
                 }
-                client_buffers.recieve_index = 0;
+                client.buffers.recieve_index = 0;
             }
             if (bytes_recieved < 0) {
                 log(ERROR, "%s", "recv() failed");

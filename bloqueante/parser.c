@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include "parser.h"
+#include "clients.h"
 
 struct pop3_command * fill_command(char * buffer) {
     pop3_command * command = calloc(1, sizeof(pop3_command));
@@ -54,10 +55,10 @@ struct pop3_command * fill_command(char * buffer) {
     return command;
 }
 
-int parse (struct pop3_command * command, char * valid_commands[], int command_count) {
+int parse (struct pop3_command * command, struct client * client) {
 
-    for(int i = 0; i < command_count; i++) {
-        if (strcasecmp(command->command, valid_commands[i]) == 0) {
+    for(int i = 0; i < client->available_commands_count; i++) {
+        if (strcasecmp(command->command, client->available_commands[i]) == 0) {
             free(command);
             return 1;
         }
