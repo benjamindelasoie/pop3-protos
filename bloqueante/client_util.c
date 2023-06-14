@@ -1,0 +1,103 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <limits.h>
+#include <errno.h>
+
+#include <unistd.h>
+#include <sys/types.h>   // socket
+#include <sys/socket.h>  // socket
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
+#include "parser.h"
+#include "clients.h"
+#include "logger.h"
+
+void * handleClient (void * args) {
+    int * client_fd = (int *) args;
+
+    client client;
+    memset(&client, 0, sizeof(client));
+    client.fd = *client_fd;
+    client.state = GREETING;
+
+    send(client.fd, "+OK SERVER READY\r\n",19,0);
+
+    client.state = AUTHORIZATION;
+    client.available_commands = authorization_commands;
+    client.available_commands_count = authorization_command_count;
+
+    ssize_t bytes_recieved = 0;
+
+    while ((bytes_recieved = recv(client.fd, client.buffers.recieve, BUFSIZE, 0)) > 0) {
+        while (bytes_recieved > 0) {
+            // log(DEBUG, "%ld bytes recieved", bytes_recieved);
+            // log(DEBUG, "buffer: %s", client_buffers.recieve);
+            int ready = read_line(&client.buffers);
+            bytes_recieved -= client.buffers.parser_index;
+            // log(DEBUG, "parse_buffer: %s", client_buffers.parser);
+            // log(DEBUG, "ready: %d", ready);
+            if (ready == 1) {
+                pop3_command * command = fill_command(client.buffers.parser);
+                client.buffers.parser_index = 0;
+                ssize_t num_bytes_sent;
+                if (command != NULL) {
+                    int ok = parse(command, &client);
+                    if (ok) {
+                        num_bytes_sent = send(client.fd, "+OK!\r\n", 7, 0);
+                    } else {
+                        num_bytes_sent = send(client.fd, "-ERR!\r\n", 8, 0);
+                    }
+                } else {
+                    num_bytes_sent = send(client.fd, "-ERR!\r\n", 8, 0);
+                }
+                if (num_bytes_sent < 0) {
+                    log(ERROR, "%s", "send() failed");
+                }
+            }
+        }
+        client.buffers.recieve_index = 0;
+    }
+    if (bytes_recieved < 0) {
+        log(ERROR, "%s", "recv() failed");
+    } else {
+        log(DEBUG, "closing client %d", client.fd);
+        close(client.fd);
+    }
+
+    return 0;
+}
+
+//fills up paser emptying reciever
+ssize_t read_line(struct buffers * buffers) {
+    int crlf = 0;
+    for ( ; buffers->recieve[buffers->recieve_index] != 0 && buffers->parser_index<BUFSIZE && buffers->recieve_index<BUFSIZE; 
+        buffers->parser_index++, buffers->recieve_index++) {
+        
+        char c = buffers->recieve[buffers->recieve_index];
+        buffers->parser[buffers->parser_index] = c;
+        buffers->recieve[buffers->recieve_index] = 0;
+        
+        if( c == '\r' ) {
+            crlf = 1;
+        } else if (c == '\n') {
+            if (crlf) {
+                buffers->recieve_index++;
+                buffers->parser_index++;
+                return 1;
+            } else {
+                crlf = 0;
+            }
+        } else {
+            crlf = 0;
+        }
+    }
+    if (buffers->recieve_index >= BUFSIZE || buffers->recieve[buffers->recieve_index] == 0) {
+        buffers->recieve_index = 0;
+    }
+    if (buffers->parser_index == BUFSIZE) {
+        return 1;
+    }
+    return 0;
+}

@@ -1,6 +1,8 @@
 #ifndef CLIENTS_H_
 #define CLIENTS_H_
 
+#include <unistd.h>
+
 typedef enum client_state{
     GREETING,
     AUTHORIZATION,
@@ -20,6 +22,8 @@ typedef struct buffers {
 
 
 typedef struct client{
+    unsigned int fd;
+
     client_state state;
     buffers buffers;
     char ** available_commands;
@@ -27,5 +31,8 @@ typedef struct client{
     
     int user;
 }client;
+
+void * handleClient (void * args);
+ssize_t read_line(struct buffers * buffers);
 
 #endif
