@@ -2,6 +2,8 @@
 #define CLIENTS_H_
 
 #include <unistd.h>
+#include <stdbool.h>
+#include "pop_commands.h"
 
 typedef enum client_state{
     GREETING,
@@ -28,8 +30,9 @@ typedef struct client{
     buffers buffers;
     char ** available_commands;
     int available_commands_count;
+    command_function * available_commands_functions;
     
-    int user;
+    bool user_auth;
 }client;
 
 void * handleClient (void * args);

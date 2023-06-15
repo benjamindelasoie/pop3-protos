@@ -13,11 +13,12 @@
 #include "parser.h"
 #include "clients.h"
 #include "logger.h"
+#include "pop_commands.h"
 
 void * handleClient (void * args) {
     int * client_fd = (int *) args;
 
-    client client;
+    struct client client;
     memset(&client, 0, sizeof(client));
     client.fd = *client_fd;
     client.state = GREETING;
@@ -25,8 +26,9 @@ void * handleClient (void * args) {
     send(client.fd, "+OK SERVER READY\r\n",19,0);
 
     client.state = AUTHORIZATION;
-    client.available_commands = authorization_commands;
+    client.available_commands = authorization_command;
     client.available_commands_count = authorization_command_count;
+    client.available_commands_functions = authorization_command_function;
 
     ssize_t bytes_recieved = 0;
 
@@ -43,14 +45,15 @@ void * handleClient (void * args) {
                 client.buffers.parser_index = 0;
                 ssize_t num_bytes_sent;
                 if (command != NULL) {
-                    int ok = parse(command, &client);
-                    if (ok) {
-                        num_bytes_sent = send(client.fd, "+OK!\r\n", 7, 0);
+                    int ok;
+                    if ((ok = parse(command, &client)) < 0) {
+                        free (command);
+                        num_bytes_sent = send(client.fd, "-ERR\r\n", 7, 0);
                     } else {
-                        num_bytes_sent = send(client.fd, "-ERR!\r\n", 8, 0);
+                        (*client.available_commands_functions[ok])(command, &client);
                     }
                 } else {
-                    num_bytes_sent = send(client.fd, "-ERR!\r\n", 8, 0);
+                    num_bytes_sent = send(client.fd, "-ERR\r\n", 7, 0);
                 }
                 if (num_bytes_sent < 0) {
                     log(ERROR, "%s", "send() failed");
