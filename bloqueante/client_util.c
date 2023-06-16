@@ -9,6 +9,7 @@
 #include <sys/socket.h>  // socket
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <pthread.h>
 
 #include "parser.h"
 #include "clients.h"
@@ -21,7 +22,9 @@ void * handleClient (void * args) {
     struct client client;
     memset(&client, 0, sizeof(client));
     client.fd = *client_fd;
+    client.mail_directory = mail_directory;
     client.state = GREETING;
+    log(DEBUG, "%s", mail_directory);
 
     send(client.fd, "+OK SERVER READY\r\n",19,0);
 
@@ -51,6 +54,7 @@ void * handleClient (void * args) {
                         num_bytes_sent = send(client.fd, "-ERR\r\n", 7, 0);
                     } else {
                         (*client.available_commands_functions[ok])(command, &client);
+                        free(command);
                     }
                 } else {
                     num_bytes_sent = send(client.fd, "-ERR\r\n", 7, 0);
@@ -65,7 +69,8 @@ void * handleClient (void * args) {
     if (bytes_recieved < 0) {
         log(ERROR, "%s", "recv() failed");
     } else {
-        log(DEBUG, "closing client %d", client.fd);
+        // log(DEBUG, "closing client %d", client.fd);
+        free(client.username);
         close(client.fd);
     }
 
@@ -103,4 +108,20 @@ ssize_t read_line(struct buffers * buffers) {
         return 1;
     }
     return 0;
+}
+
+void * set_mail_directory(void * args) {
+    char * directory = (char *) args;
+    log(DEBUG, "%s", directory);
+    int length = strlen(directory);
+    if ((mail_directory = calloc(1, length + 1)) == NULL) {
+        log(ERROR, "%s", "Could Not Calloc mail directory");
+        pthread_exit((int *)-1);
+    }
+    if (sprintf(mail_directory, "%s", directory) < length ) {
+        free(mail_directory);
+        log(ERROR, "%s", "Could Not copy mail directory");
+        pthread_exit((int *)-1);
+    } 
+    pthread_exit(0);
 }
