@@ -21,7 +21,7 @@ void noop_command (struct pop3_command * command, struct client * client);
 void rset_command (struct pop3_command * command, struct client * client);
 
 // AUTHENTICATION State 
-static char * authorization_command[] = {"USER", "PASS", "QUIT"};
+static char * authorization_command[] = {"QUIT", "USER", "PASS"};
 static int authorization_command_count = 3;
 // TRANSACTION State 
 static char * transaction_command[] = {"QUIT", "STAT", "LIST", "RETR", "DELE", "NOOP", "RSET"};
@@ -30,9 +30,10 @@ static int transaction_command_count = 7;
 typedef void (*command_function) (struct pop3_command *, struct client *);
 
 static command_function authorization_command_function[] = 
-    {(command_function)&user_command, 
-    (command_function)&pass_command, 
-    (command_function)&quit_auth_command};
+    {(command_function)&quit_auth_command,
+    (command_function)&user_command, 
+    (command_function)&pass_command
+    };
 static command_function transaction_command_function[] = 
     {(command_function) &quit_command, 
     (command_function) &stat_command, 

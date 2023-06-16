@@ -1,5 +1,5 @@
 #include <string.h>
-
+#include <stdlib.h>
 #include <unistd.h>
 #include <sys/types.h>   // socket
 #include <sys/socket.h>  // socket
@@ -40,12 +40,12 @@ void pass_command (struct pop3_command * command, struct client * client) {
 }
 
 void quit_auth_command (struct pop3_command * command, struct client * client) {
-    send(client->fd, "+OK\r\n", 6, 0);
+    send(client->fd, "+OK Logging out\r\n", 18, 0);
     return;
 }
 
 void quit_command (struct pop3_command * command, struct client * client) {
-    send(client->fd, "+OK\r\n", 6, 0);
+    send(client->fd, "+OK Logging out\r\n", 18, 0);
     return;
 }
 
