@@ -32,10 +32,14 @@ typedef struct client{
     int available_commands_count;
     command_function * available_commands_functions;
     
+    char * username;
+    char * mail_directory;
+
     bool user_auth;
 }client;
 
 void * handleClient (void * args);
 ssize_t read_line(struct buffers * buffers);
+void * set_mail_directory(void * args);
 
 #endif

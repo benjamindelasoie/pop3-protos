@@ -3,6 +3,8 @@
 
 #include "parser.h"
 
+static char * mail_directory = NULL;
+
 struct pop3_command;
 struct client;
 
