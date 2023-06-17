@@ -37,9 +37,9 @@ void * handleClient (void * args) {
     client.available_commands_functions = authorization_command_function;
 
     ssize_t bytes_recieved = 0;
-
-    while ((bytes_recieved = recv(client.fd, client.buffers.recieve, BUFSIZE, 0)) > 0) {
-        while (bytes_recieved > 0) {
+    int ok = 1;
+    while (ok > 0 && (bytes_recieved = recv(client.fd, client.buffers.recieve, BUFSIZE, 0)) > 0) {
+        while (ok > 0 && bytes_recieved > 0) {
             // log(DEBUG, "%ld bytes recieved", bytes_recieved);
             // log(DEBUG, "buffer: %s", client_buffers.recieve);
             int ready = read_line(&client.buffers);
@@ -51,11 +51,10 @@ void * handleClient (void * args) {
                 client.buffers.parser_index = 0;
                 ssize_t num_bytes_sent;
                 if (command != NULL) {
-                    int ok;
                     if ((ok = parse(command, &client)) < 0) {
                         free (command);
                         num_bytes_sent = send(client.fd, "-ERR\r\n", 7, 0);
-                    } else {
+                    }else {
                         (*client.available_commands_functions[ok])(command, &client);
                         free(command);
                     }
@@ -69,7 +68,10 @@ void * handleClient (void * args) {
         }
         client.buffers.recieve_index = 0;
     }
-    if (bytes_recieved < 0) {
+
+    if (ok == 0){
+        close(client.fd);
+    }else if (bytes_recieved < 0) {
         log(ERROR, "%s", "recv() failed");
     } else {
         // log(DEBUG, "closing client %d", client.fd);
