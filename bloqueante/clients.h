@@ -22,6 +22,11 @@ typedef struct buffers {
     int parser_index;
 } buffers;
 
+typedef struct mail_file {
+    char * file_name;
+    int to_delete;
+    struct mail_file * next;
+}mail_file;
 
 typedef struct client{
     unsigned int fd;
@@ -34,6 +39,7 @@ typedef struct client{
     
     char * username;
     char * mail_directory;
+    struct mail_file * first_mail;
 
     bool user_auth;
 }client;
@@ -41,5 +47,7 @@ typedef struct client{
 void * handleClient (void * args);
 ssize_t read_line(struct buffers * buffers);
 void * set_mail_directory(void * args);
+int fill_mail (struct client * client);
+void free_client (struct client * client);
 
 #endif

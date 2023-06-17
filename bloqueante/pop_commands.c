@@ -32,6 +32,10 @@ void user_command (struct pop3_command * command, struct client * client) {
 void pass_command (struct pop3_command * command, struct client * client) {
     if (client->user_auth) {
         if (strcmp(command->argument, PASS) == 0) {
+            if (fill_mail(client) < 0) {
+                //TODO: CHeck errors
+                return;
+            }
             client->state = TRANSACTION;
             client->available_commands = transaction_command;
             client->available_commands_count = transaction_command_count;
@@ -60,42 +64,29 @@ void quit_command (struct pop3_command * command, struct client * client) {
 }
 
 void stat_command (struct pop3_command * command, struct client * client) {
-    // mail_directory/username/cur
-    int direc_lenght = strlen(client->mail_directory) + 1 + strlen(client->username) + strlen("/cur") + 1;
-    char * maildir = calloc(1, direc_lenght);
-    sprintf(maildir, "%s/%s/cur", client->mail_directory, client->username);
-    DIR * directory = opendir(maildir);
-    char * buffer = NULL;
-    struct dirent * file;
     int file_count = 0;
     off_t dir_size = 0;
     struct stat st;
-    if (directory != NULL) {
-        while ((file = readdir(directory)) != NULL) {
-            if (strcmp(file->d_name,".") != 0 && strcmp(file->d_name,"..")!=0) {
-                buffer = realloc(buffer, direc_lenght+1+strlen(file->d_name)+1);
-                sprintf(buffer, "%s/%s", maildir, file->d_name);
-                if (stat(buffer, &st) >= 0) {
-                    file_count++;
-                    dir_size += st.st_size;
-                } else if (errno == ENOENT) {
-                    log(ERROR, "%s", "Could not access file");
-                } else {
-                    log(ERROR, "%d", errno);
-                }
+    char buffer[BUFSIZE+1] = {0};
+    
+    struct mail_file * current = client->first_mail;
+
+    while (current != NULL) {
+        if (current->to_delete == 0) {
+            if (stat(current->file_name, &st) >= 0) {
+                file_count++;
+                dir_size += st.st_size;
+            } else if (errno == ENOENT) {
+                log(ERROR, "%s", "Could not access file");
+            } else {
+                log(ERROR, "%d", errno);
             }
         }
-        sprintf(buffer, "+OK %d %lo\r\n", file_count, dir_size);
-        send(client->fd, buffer, strlen(buffer), 0);
-    } else {
-        send(client->fd, "+OK mailbox not existent\r\n", 25, 0);
+        current = current->next;
     }
-    closedir(directory);
-    free(maildir);
-    free(buffer);
 
-    
-    return;
+    sprintf(buffer, "+OK %d %lo\r\n", file_count, dir_size);
+    send(client->fd, buffer, strlen(buffer), 0);
 }
 
 void list_command (struct pop3_command * command, struct client * client) {
