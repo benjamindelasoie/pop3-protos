@@ -70,6 +70,7 @@ void * handleClient (void * args) {
     }
 
     if (ok == 0){
+        free_client(&client);
         close(client.fd);
     }else if (bytes_recieved < 0) {
         log(ERROR, "%s", "recv() failed");
