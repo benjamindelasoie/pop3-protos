@@ -59,6 +59,15 @@ void quit_auth_command (struct pop3_command * command, struct client * client) {
 }
 
 void quit_command (struct pop3_command * command, struct client * client) {
+    struct mail_file * current = client->first_mail;
+
+    while(current != NULL) {
+        if (current->to_delete == 1) {
+            remove(current->file_name);
+        }
+        current = current->next;
+    }
+
     send(client->fd, "+OK Logging out\r\n", 18, 0);
     return;
 }
@@ -194,7 +203,22 @@ void retr_command (struct pop3_command * command, struct client * client) {
 }
 
 void dele_command (struct pop3_command * command, struct client * client) {
-    send(client->fd, "+OK\r\n", 6, 0);
+    char *end = 0;
+    const long sl = strtol(command->argument, &end, 10);
+    struct mail_file * current = client->first_mail;
+    int i = 1;
+
+    while(current != NULL) {
+        if (i == sl && current->to_delete == 0) {
+            current->to_delete = 1;
+            send(client->fd, "+OK message deleted\r\n",22,0);
+            return;
+        }
+        current = current->next;
+        i++;
+    }
+
+    send(client->fd, "-ERR No such mail\r\n", 20, 0);
     return;
 }
 
@@ -204,6 +228,13 @@ void noop_command (struct pop3_command * command, struct client * client) {
 }
 
 void rset_command (struct pop3_command * command, struct client * client) {
+    struct mail_file * current = client->first_mail;
+
+    while(current != NULL) {
+        current->to_delete = 0;
+        current = current->next;
+    }
+
     send(client->fd, "+OK\r\n", 6, 0);
     return;
 }
