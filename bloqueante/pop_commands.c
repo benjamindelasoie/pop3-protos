@@ -18,38 +18,77 @@
 #define PASS "pass"
 
 void user_command (struct pop3_command * command, struct client * client) {
-    if (strcmp(command->argument, USER) == 0) {
-        client->user_auth = true;
-        client->username = calloc(1,strlen(command->argument) + 1);
-        strcpy(client->username, command->argument);
-        send(client->fd, "+OK\r\n", 6, 0);
-    } else {
-        send(client->fd, "-ERR mailbox not found\r\n", 25, 0);
+    
+    FILE * file = fopen("users.txt", "r");
+    char buffer[BUFSIZE + 1] = {0};
+    int arg_length = strlen(command->argument);
+
+    while (fgets(buffer, BUFSIZE, file) != NULL) {
+        int flag = 1;
+        int i;
+        for(i=0; buffer[i]!=0 && command->argument[i]!= 0 && flag && i<arg_length &&i<BUFSIZE; i++) {
+            if (command->argument[i] != buffer[i]) {
+                flag = 0;
+            }
+        }
+
+        if (flag) {
+            if (i == arg_length) {
+                client->user_auth = true;
+                client->username = calloc(1,strlen(command->argument) + 1);
+                strcpy(client->username, command->argument);
+                send(client->fd, "+OK\r\n", 6, 0);
+                return;
+            } 
+        }
     }
+
+    send(client->fd, "-ERR mailbox not found\r\n", 25, 0);
     return;
 }
 
 void pass_command (struct pop3_command * command, struct client * client) {
+    
     if (client->user_auth) {
-        if (strcmp(command->argument, PASS) == 0) {
-            if (fill_mail(client) < 0) {
-                //TODO: CHeck errors
-                return;
+
+        FILE * file = fopen("users.txt", "r");
+        char buffer[BUFSIZE + 1] = {0};
+        int arg_length = strlen(command->argument);
+        
+        while (fgets(buffer, BUFSIZE, file) != NULL) {
+            int flag = 1;
+            int i, j=0;
+
+            while (buffer[j] != 0 && buffer[j++] != ' ');
+
+            for(i=0; buffer[j]!=0 && command->argument[i]!= 0 && flag && i<arg_length && j<BUFSIZE; i++, j++) {
+                if (command->argument[i] != buffer[j]) {
+                    flag = 0;
+                }
             }
-            client->state = TRANSACTION;
-            client->available_commands = transaction_command;
-            client->available_commands_count = transaction_command_count;
-            client->available_commands_functions = transaction_command_function;
-            send(client->fd, "+OK\r\n", 6, 0);
-        } else {
-            client->user_auth = false;
-            free(client->username);
-            send(client->fd, "-ERR\r\n", 7, 0);
+
+            if (flag) {
+                if (i == arg_length) {
+                    if (fill_mail(client) < 0) {
+                        //TODO: CHeck errors
+                        return;
+                    }
+                    client->state = TRANSACTION;
+                    client->available_commands = transaction_command;
+                    client->available_commands_count = transaction_command_count;
+                    client->available_commands_functions = transaction_command_function;
+                    send(client->fd, "+OK\r\n", 6, 0);
+                    return;
+                } 
+            }
         }
-    } else {
         client->user_auth = false;
         free(client->username);
-        send(client->fd, "-ERR\r\n", 7, 0);
+        send(client->fd, "-ERR incorrect credentials, try again.\r\n", 41, 0);
+    } else {
+        // client->user_auth = false;
+        // free(client->username);
+        send(client->fd, "-ERR no user provided\r\n", 24, 0);
     }
 }
 
