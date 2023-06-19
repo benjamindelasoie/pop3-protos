@@ -95,7 +95,34 @@ void list_command (struct pop3_command * command, struct client * client) {
 }
 
 void retr_command (struct pop3_command * command, struct client * client) {
-    send(client->fd, "+OK\r\n", 6, 0);
+    char *end = 0;
+    const long sl = strtol(command->argument, &end, 10);
+    struct mail_file * current = client->first_mail;
+    char buffer[BUFSIZE+1] = {0};
+    FILE * file;
+    int bytes_read = 0;
+    int i = 1;
+
+    while(current != NULL) {
+        if (i == sl && current->to_delete == 0) {
+            if ((file = fopen(current->file_name, "r")) == NULL) {
+                send(client->fd, "-ERR Could not open mail\r\n", 27, 0);
+            } else {
+                send(client->fd, "+OK\r\n", 6, 0);
+                while ( fgets(buffer, BUFSIZE, file) != NULL) {
+                    send(client->fd, buffer, strlen(buffer), 0);
+                }
+                send(client->fd, "\r\n.\r\n", 6, 0);
+            }
+            fclose(file);
+            return;
+        }
+        current = current->next;
+        i++;
+    }
+
+    send(client->fd, "-ERR No such mail\r\n", 20, 0);
+
     return;
 }
 
