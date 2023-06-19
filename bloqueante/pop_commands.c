@@ -90,7 +90,74 @@ void stat_command (struct pop3_command * command, struct client * client) {
 }
 
 void list_command (struct pop3_command * command, struct client * client) {
-    send(client->fd, "+OK\r\n", 6, 0);
+    struct stat st;
+    int file_id = 1;
+    int not_deleted = 0;
+    off_t dir_size = 0;
+    char buffer[BUFSIZE+1] = {0};
+    struct mail_file * current = client->first_mail;
+    int argument_id;
+
+    if(command->argument[0] != '\0'){
+        argument_id = atoi(command->argument);
+    }else{
+        while(current != NULL){
+            if (current->to_delete == 0) {
+                if (stat(current->file_name, &st) >= 0) {
+                    dir_size+=st.st_size;
+                }else if (errno == ENOENT) {
+                    log(ERROR, "%s", "Could not access file");
+                } else {
+                    log(ERROR, "%d", errno);
+            }
+            not_deleted++;
+            }
+            current = current->next;
+        }
+
+        sprintf(buffer, "+OK %d messages (%lo octets)\r\n", not_deleted, dir_size);
+        send(client->fd,buffer,strlen(buffer),0);
+    }
+
+
+    current = client->first_mail;
+    while (current != NULL) {
+        if (current->to_delete == 0) {
+            if(command->argument[0] != '\0'){
+                if (argument_id == file_id)
+                {
+                    if (stat(current->file_name, &st) >= 0){
+                        sprintf(buffer, "+OK %d %lo\r\n",file_id, st.st_size);
+                        send(client->fd,buffer,strlen(buffer),0);
+                    }else if (errno == ENOENT) {
+                        log(ERROR, "%s", "Could not access file");
+                    } else {
+                        log(ERROR, "%d", errno);
+                    }
+                    return;
+                }
+                not_deleted++;
+            }else if (stat(current->file_name, &st) >= 0) {
+                sprintf(buffer, "%d %lo\r\n",file_id, st.st_size);
+                send(client->fd,buffer,strlen(buffer),0);
+            }else if (errno == ENOENT) {
+                log(ERROR, "%s", "Could not access file");
+            } else {
+                log(ERROR, "%d", errno);
+            }
+            
+        }
+        file_id++ ;    
+        current = current->next;
+        }
+      
+
+    if (command->argument[0] != '\0')
+    {
+        sprintf(buffer, "-ERR no such message, only %d messages in mail\r\n", not_deleted);\
+        send(client->fd,buffer,strlen(buffer),0);
+    }
+    
     return;
 }
 
