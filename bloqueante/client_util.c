@@ -39,7 +39,7 @@ void * handleClient (void * args) {
     ssize_t bytes_recieved = 0;
     int ok = 1;
     while (ok != 0 && (bytes_recieved = recv(client.fd, client.buffers.recieve, BUFSIZE, 0)) > 0) {
-        while (ok > 0 && bytes_recieved > 0) {
+        while (ok != 0 && bytes_recieved > 0) {
             // log(DEBUG, "%ld bytes recieved", bytes_recieved);
             // log(DEBUG, "buffer: %s", client_buffers.recieve);
             int ready = read_line(&client.buffers);
