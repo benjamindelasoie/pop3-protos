@@ -23,6 +23,7 @@ void suscribe_read (struct client * client);
 void suscribe_write (struct client * client);
 return_status suscribe_err (struct client * client);
 return_status suscribe_ok (struct client * client);
-void recieve_flush(struct client * client);
+return_status recieve_flush(struct client * client);
+int handle_error(struct client * client, return_status ret);
 
 #endif
