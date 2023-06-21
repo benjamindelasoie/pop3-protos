@@ -154,10 +154,8 @@ void stat_command (struct pop3_command * command, struct client * client) {
 
 void list_command (struct pop3_command * command, struct client * client) {
     struct stat st;
-    int file_id = 1;
     int not_deleted = 0;
     off_t dir_size = 0;
-    char buffer[BUFSIZE+1] = {0};
     struct mail_file * current = client->first_mail;
     int argument_id;
 
@@ -178,49 +176,70 @@ void list_command (struct pop3_command * command, struct client * client) {
             current = current->next;
         }
 
-        sprintf(buffer, "+OK %d messages (%lo octets)\r\n", not_deleted, dir_size);
-        send(client->fd,buffer,strlen(buffer),0);
+        sprintf(client->buffers.write, "+OK %d messages (%lo octets)\r\n", not_deleted, dir_size);
+        client->buffers.write_size = strlen(client->buffers.write);
+        suscribe_write(client);
     }
 
 
     current = client->first_mail;
+
+    if(command->argument[0] != '\0'){
+        while (current != NULL) {
+            if (current->to_delete == 0) {
+                    if (argument_id == current->id)
+                    {
+                        if (stat(current->file_name, &st) >= 0){
+                            sprintf(client->buffers.write, "+OK %d %lo\r\n", current->id, st.st_size);
+                            client->buffers.write_size = strlen(client->buffers.write);
+                            suscribe_write(client);
+                        }else if (errno == ENOENT) {
+                            log(ERROR, "%s", "Could not access file");
+                        } else {
+                            log(ERROR, "%d", errno);
+                        }
+                        return;
+                    }
+                    not_deleted++;
+                }
+        }
+
+        sprintf(client->buffers.write, "-ERR no such message, only %d messages in mail\r\n", not_deleted);\
+        client->buffers.write_size = strlen(client->buffers.write);
+        suscribe_write(client);
+    }else{
+        client->current_mail = current;
+        fill_list_command(client);
+    }
+    
+    return;
+}
+
+void fill_list_command(struct client * client)
+{
+    struct stat st;
+    struct mail_file * current = client->current_mail;
+
     while (current != NULL) {
         if (current->to_delete == 0) {
-            if(command->argument[0] != '\0'){
-                if (argument_id == file_id)
-                {
-                    if (stat(current->file_name, &st) >= 0){
-                        sprintf(buffer, "+OK %d %lo\r\n",file_id, st.st_size);
-                        send(client->fd,buffer,strlen(buffer),0);
-                    }else if (errno == ENOENT) {
-                        log(ERROR, "%s", "Could not access file");
-                    } else {
-                        log(ERROR, "%d", errno);
-                    }
-                    return;
-                }
-                not_deleted++;
+            
+            if(client->buffers.write_size == BUFSIZE){
+                client->state = WRITING_LIST;
+                client->current_mail = current;
+                return;
             }else if (stat(current->file_name, &st) >= 0) {
-                sprintf(buffer, "%d %lo\r\n",file_id, st.st_size);
-                send(client->fd,buffer,strlen(buffer),0);
+                sprintf(client->buffers.write, "+OK %d %lo\r\n", current->id, st.st_size);
+                client->buffers.write_size = strlen(client->buffers.write);
+                suscribe_write(client);
             }else if (errno == ENOENT) {
                 log(ERROR, "%s", "Could not access file");
             } else {
                 log(ERROR, "%d", errno);
             }
-            
         }
-        file_id++ ;    
         current = current->next;
-        }
-      
-
-    if (command->argument[0] != '\0')
-    {
-        sprintf(buffer, "-ERR no such message, only %d messages in mail\r\n", not_deleted);\
-        send(client->fd,buffer,strlen(buffer),0);
     }
-    
+
     return;
 }
 

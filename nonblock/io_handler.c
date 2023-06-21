@@ -3,6 +3,7 @@
 #include "io_handler.h"
 #include "logger.h"
 #include "client.h"
+#include "pop_commands.h"
 
 int handle_read (struct client * client) {
     client->buffers.bytes_recieved = recv(client->fd, client->buffers.recieve, BUFSIZE, MSG_NOSIGNAL);
@@ -30,7 +31,9 @@ int handle_write (struct client * client) {
 
     if (client->buffers.write_size > 0) {
         suscribe_write(client);
-    } else if (client->state == CLOSING) {
+    } else if(client->state == WRITING_LIST){
+        fill_list_command(client);
+    }else if (client->state == CLOSING) {
         return 0;
     } else {
         client->buffers.write_index = 0;

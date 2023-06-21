@@ -22,6 +22,8 @@ void dele_command (struct pop3_command * command, struct client * client);
 void noop_command (struct pop3_command * command, struct client * client);
 void rset_command (struct pop3_command * command, struct client * client);
 
+void fill_list_command(struct client * client);
+
 // AUTHENTICATION State 
 static char * authorization_command[] = {"QUIT", "USER", "PASS"};
 static int authorization_command_count = 3;

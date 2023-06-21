@@ -56,7 +56,11 @@ int fill_mail (struct client * client) {
 }
 
 void free_client (struct client * client) {
-    free(client->username);
+    if (client->username != NULL)
+    {
+        free(client->username);
+    }
+    
 
     struct mail_file * current = client->first_mail;
     struct mail_file * next;

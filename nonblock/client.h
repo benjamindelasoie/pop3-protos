@@ -10,7 +10,8 @@ typedef enum client_state{
     AUTHORIZATION,
     TRANSACTION,
     UPDATE,
-    CLOSING
+    CLOSING,
+    WRITING_LIST
 }client_state;
 
 typedef enum interest {
@@ -35,6 +36,7 @@ typedef struct buffers {
 typedef struct mail_file {
     char * file_name;
     int to_delete;
+    int id;
     struct mail_file * next;
 }mail_file;
 
@@ -51,6 +53,7 @@ typedef struct client{
     char * username;
     char * mail_directory;
     struct mail_file * first_mail;
+    struct mail_file * current_mail;
 
     bool user_auth;
 }client;
