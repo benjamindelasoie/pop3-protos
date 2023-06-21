@@ -229,16 +229,18 @@ void fill_list_command(struct client * client)
 {
     struct stat st;
     struct mail_file * current = client->current_mail;
+    char buffer[BUFSIZE] = {0};
 
     while (current != NULL) {
         if (current->to_delete == 0) {
             
-            if(client->buffers.write_size == BUFSIZE){
+            if(client->buffers.write_size+strlen(buffer) > BUFSIZE){
                 client->state = WRITING_LIST;
                 client->current_mail = current;
                 return;
             }else if (stat(current->file_name, &st) >= 0) {
-                sprintf(client->buffers.write, "+OK %d %lo\r\n", current->id, st.st_size);
+                sprintf(buffer, "+OK %d %lo\r\n", current->id, st.st_size);
+                strcat(client->buffers.write,buffer);
                 client->buffers.write_size += strlen(client->buffers.write);
                 suscribe_write(client);
             }else if (errno == ENOENT) {
@@ -250,6 +252,7 @@ void fill_list_command(struct client * client)
         current = current->next;
     }
 
+    client->state=TRANSACTION;
     return;
 }
 

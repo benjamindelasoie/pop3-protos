@@ -36,6 +36,11 @@ int handle_write (struct client * client) {
     }else if (client->state == CLOSING) {
         return 0;
     } else {
+        for (size_t i = 0; i < BUFSIZE; i++)
+        {
+            client->buffers.write[i] = 0;
+        }
+        
         client->buffers.write_index = 0;
         client->buffers.write_size = 0;
         if (client->buffers.bytes_recieved > 0) {
