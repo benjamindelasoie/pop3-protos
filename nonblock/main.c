@@ -23,6 +23,7 @@ static void sigterm_handler(const int signal) {
             free_client(clients[i]);
         }
     }
+    exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char *argv[]) {
