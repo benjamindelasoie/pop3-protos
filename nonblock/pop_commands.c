@@ -20,8 +20,24 @@
 #define USER "user"
 #define PASS "pass"
 
+typedef struct logged_in{
+    char * username;
+    struct logged_in * next;
+}logged_in;
+
+struct logged_in * first_logged_in_user = NULL;
+struct logged_in * current;
+
 return_status user_command (struct pop3_command * command, struct client * client) {
-    
+    current = first_logged_in_user;
+    while (current != NULL)
+    {
+        if(strcmp(current->username, command->argument) == 0){
+            return suscribe_err(client);
+        }
+        current = current->next;
+    }
+
     FILE * file = fopen("users.txt", "r");
     if (file == NULL) {
         return FILE_ERR;
@@ -87,6 +103,21 @@ return_status pass_command (struct pop3_command * command, struct client * clien
                         client->available_commands = transaction_command;
                         client->available_commands_count = transaction_command_count;
                         client->available_commands_functions = transaction_command_function;
+                        
+                        current = first_logged_in_user;
+                        logged_in * aux = calloc(1, sizeof(logged_in));
+                        aux->username = client->username;
+
+                        if (current == NULL)
+                        {
+                            first_logged_in_user = aux;
+                        }else{
+                            while (current->next != NULL){
+                                current = current->next;
+                            }
+                            current->next= aux;
+                        }
+
                         // send(client->fd, "+OK\r\n", 6, 0);
                         return suscribe_ok(client);
                     } else {
@@ -110,23 +141,52 @@ return_status pass_command (struct pop3_command * command, struct client * clien
 
 return_status quit_auth_command (struct pop3_command * command, struct client * client) {
     // send(client->fd, "+OK Logging out\r\n", 18, 0);
+    current = first_logged_in_user;
+
     client->state = CLOSING;
     return suscribe_ok(client);
 }
 
 return_status quit_command (struct pop3_command * command, struct client * client) {
-    struct mail_file * current = client->first_mail;
+    struct mail_file * current_mail = client->first_mail;
 
-    while(current != NULL) {
-        if (current->to_delete == 1) {
-            remove(current->file_name);
+    while(current_mail != NULL) {
+        if (current_mail->to_delete == 1) {
+            remove(current_mail->file_name);
         }
-        current = current->next;
+        current_mail = current_mail->next;
     }
+
+
+    remove_logged_user(client);
+
 
     // send(client->fd, "+OK Logging out\r\n", 18, 0);
     client->state = CLOSING;
     return suscribe_ok(client);
+}
+
+void remove_logged_user(struct client * client){
+    current = first_logged_in_user;
+
+    if(client->username != NULL){
+        if(strcmp(current->username, client->username) == 0 ){
+            first_logged_in_user = current->next;
+            free(current);
+        }else{
+            int flag = 0;
+            while (current->next != NULL && !flag) {
+                if (strcmp(current->next->username, client->username) == 0)
+                {
+                    flag = 1;
+                    current->next = current->next->next;
+                    free(current->next);
+                }else{
+                    current = current->next;
+                }
+            }
+        }
+    }
 }
 
 return_status stat_command (struct pop3_command * command, struct client * client) {
@@ -282,9 +342,9 @@ return_status retr_command (struct pop3_command * command, struct client * clien
                 client->buffers.write_size += strlen(client->buffers.write);
                 suscribe_write(client); 
                 while ( fgets(buffer, BUFSIZE, file) != NULL) {
-                    if(client->buffers.write_size+strlen(buffer) > BUFSIZE){
-                        return;
-                    }
+                    // if(client->buffers.write_size+strlen(buffer) > BUFSIZE){
+                    //     return;
+                    // }
                     strcat(client->buffers.write, buffer);
                     client->buffers.write_size += strlen(client->buffers.write);
                     suscribe_write(client); 

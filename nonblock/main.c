@@ -20,6 +20,7 @@ static void sigterm_handler(const int signal) {
     for(int i=0; i<MAX_CLIENTS; i++) {
         if (clients[i] != NULL) {
             close(i);
+            remove_logged_user(clients[i]);
             free_client(clients[i]);
         }
     }
@@ -28,7 +29,6 @@ static void sigterm_handler(const int signal) {
 
 int main(int argc, char *argv[]) {
     unsigned port = 1080;
-
 
     if(argc == 2) {
         // utilizamos el default
@@ -135,6 +135,7 @@ int main(int argc, char *argv[]) {
                 if (FD_ISSET(i, &select_info.readfds)) {
                     FD_CLR(i, &select_info.readfds);
                     if(handle_read(clients[i]) <= 0) {
+                        remove_logged_user(clients[i]);
                         free_client(clients[i]);
                         close(i);
                         clients[i] = NULL;
@@ -147,6 +148,7 @@ int main(int argc, char *argv[]) {
                 if (FD_ISSET(i, &select_info.writefds)) {
                     FD_CLR(i, &select_info.writefds);
                     if (handle_write(clients[i]) <= 0) {
+                        remove_logged_user(clients[i]);
                         free_client(clients[i]);
                         close(i);
                         clients[i] = NULL;

@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include "pop_commands.h"
 
+
+
 typedef enum client_state{
     GREETING,
     AUTHORIZATION,

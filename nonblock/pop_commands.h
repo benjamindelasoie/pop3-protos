@@ -24,6 +24,7 @@ return_status noop_command (struct pop3_command * command, struct client * clien
 return_status rset_command (struct pop3_command * command, struct client * client);
 
 void fill_list_command(struct client * client);
+void remove_logged_user(struct client * client);
 
 // AUTHENTICATION State 
 static char * authorization_command[] = {"QUIT", "USER", "PASS"};
