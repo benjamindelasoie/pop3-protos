@@ -16,8 +16,8 @@ int handle_read (struct client * client) {
         }
     }
 
-    recieve_flush(client);
-    return 1;
+    return_status ret = recieve_flush(client);
+    return handle_error(client, ret);
 }
 
 int handle_write (struct client * client) {
@@ -44,12 +44,30 @@ int handle_write (struct client * client) {
         client->buffers.write_index = 0;
         client->buffers.write_size = 0;
         if (client->buffers.bytes_recieved > 0) {
-            recieve_flush(client);
+            return_status ret = recieve_flush(client);
+            return handle_error(client, ret);
         } else {
             suscribe_read(client);
         }
     }
     return 1;
+}
+
+int handle_error(struct client * client, return_status ret) {
+    switch (ret) {
+    case OK_STATUS:
+        return 1;
+    case MEMORY_ALOC: case FILE_ERR:
+        if (suscribe_err(client) == STRING_COPY) {
+            return -1;
+        } else {
+            return 1;
+        }
+    case RECV_ERR: case SEND_ERR: case STRING_COPY: 
+        return -1;
+    default:
+        return 1;
+    }
 }
 
 return_status suscribe_err (struct client * client) {
@@ -86,7 +104,7 @@ void suscribe_read (struct client * client) {
     client->interest = READ;
 }
 
-void recieve_flush(struct client * client) {
+return_status recieve_flush(struct client * client) {
     int ready = read_line(&client->buffers);
 
     if (ready == 1) {
@@ -95,30 +113,19 @@ void recieve_flush(struct client * client) {
             int ok;
             if ((ok = parse(command, client)) < 0) {
                 free (command);
-                suscribe_err(client);
+                return suscribe_err(client);
             }else {
                 return_status ret;
                 ret = (*client->available_commands_functions[ok])(command, client);
                 free(command);
-                if (ret != OK_STATUS) {
-                    switch (ret)
-                    {
-                    case STRING_COPY:
-                        return;
-                        break;
-                    case MEMORY_ALOC: case FILE_ERR:
-                        suscribe_err(client);
-                    default:
-                        return;
-                        break;
-                    }
-                }
+                return ret;
                 // suscribe_ok(client);
             }
         } else {
-            suscribe_err(client);
+            return suscribe_err(client);
         }
     } else {
         suscribe_read(client);
+        return OK_STATUS;
     }
 }
