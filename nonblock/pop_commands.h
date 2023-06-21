@@ -17,8 +17,8 @@ return_status quit_auth_command (struct pop3_command * command, struct client * 
 //transaction commands
 return_status quit_command (struct pop3_command * command, struct client * client);
 return_status stat_command (struct pop3_command * command, struct client * client);
-void list_command (struct pop3_command * command, struct client * client);
-void retr_command (struct pop3_command * command, struct client * client);
+return_status list_command (struct pop3_command * command, struct client * client);
+return_status retr_command (struct pop3_command * command, struct client * client);
 return_status dele_command (struct pop3_command * command, struct client * client);
 return_status noop_command (struct pop3_command * command, struct client * client);
 return_status rset_command (struct pop3_command * command, struct client * client);

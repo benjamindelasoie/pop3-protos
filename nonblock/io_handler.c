@@ -99,12 +99,12 @@ void recieve_flush(struct client * client) {
                     switch (ret)
                     {
                     case STRING_COPY:
-                        return ret;
+                        return;
                         break;
                     case MEMORY_ALOC: case FILE_ERR:
                         suscribe_err(client);
                     default:
-                        return -1;
+                        return;
                         break;
                     }
                 }

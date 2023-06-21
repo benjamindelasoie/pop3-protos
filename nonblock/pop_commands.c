@@ -161,7 +161,7 @@ return_status stat_command (struct pop3_command * command, struct client * clien
     // send(client->fd, buffer, strlen(buffer), 0);
 }
 
-void list_command (struct pop3_command * command, struct client * client) {
+return_status list_command (struct pop3_command * command, struct client * client) {
     struct stat st;
     int not_deleted = 0;
     off_t dir_size = 0;
@@ -207,10 +207,11 @@ void list_command (struct pop3_command * command, struct client * client) {
                         } else {
                             log(ERROR, "%d", errno);
                         }
-                        return;
+                        return OK_STATUS;
                     }
                     not_deleted++;
                 }
+            current = current->next;
         }
 
         sprintf(client->buffers.write, "-ERR no such message, only %d messages in mail\r\n", not_deleted);\
@@ -221,7 +222,7 @@ void list_command (struct pop3_command * command, struct client * client) {
         fill_list_command(client);
     }
     
-    return;
+    return OK_STATUS;
 }
 
 void fill_list_command(struct client * client)
@@ -238,7 +239,7 @@ void fill_list_command(struct client * client)
                 return;
             }else if (stat(current->file_name, &st) >= 0) {
                 sprintf(client->buffers.write, "+OK %d %lo\r\n", current->id, st.st_size);
-                client->buffers.write_size = strlen(client->buffers.write);
+                client->buffers.write_size += strlen(client->buffers.write);
                 suscribe_write(client);
             }else if (errno == ENOENT) {
                 log(ERROR, "%s", "Could not access file");
@@ -252,7 +253,7 @@ void fill_list_command(struct client * client)
     return;
 }
 
-void retr_command (struct pop3_command * command, struct client * client) {
+return_status retr_command (struct pop3_command * command, struct client * client) {
     char *end = 0;
     const long sl = strtol(command->argument, &end, 10);
     struct mail_file * current = client->first_mail;
@@ -265,6 +266,7 @@ void retr_command (struct pop3_command * command, struct client * client) {
         if (i == sl && current->to_delete == 0) {
             if ((file = fopen(current->file_name, "r")) == NULL) {
                 send(client->fd, "-ERR Could not open mail\r\n", 27, 0);
+                return FILE_ERR;
             } else {
                 send(client->fd, "+OK\r\n", 6, 0);
                 while ( fgets(buffer, BUFSIZE, file) != NULL) {
@@ -273,7 +275,7 @@ void retr_command (struct pop3_command * command, struct client * client) {
                 send(client->fd, "\r\n.\r\n", 6, 0);
             }
             fclose(file);
-            return;
+            return OK_STATUS;
         }
         current = current->next;
         i++;
@@ -281,7 +283,7 @@ void retr_command (struct pop3_command * command, struct client * client) {
 
     send(client->fd, "-ERR No such mail\r\n", 20, 0);
 
-    return;
+    return OK_STATUS;
 }
 
 return_status dele_command (struct pop3_command * command, struct client * client) {

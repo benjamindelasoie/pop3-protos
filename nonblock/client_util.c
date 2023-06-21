@@ -22,6 +22,7 @@ return_status fill_mail (struct client * client) {
     }
     struct dirent * file;
     struct mail_file * current = NULL;
+    int i = 1;
 
     while ((file = readdir(directory)) != NULL) {
         if (strcmp(file->d_name,".") != 0 && strcmp(file->d_name,"..")!=0) {
@@ -40,6 +41,7 @@ return_status fill_mail (struct client * client) {
                 }
             }
 
+            current->id = i++;
             int file_lenght = direc_lenght+1+strlen(file->d_name);
             if ((current->file_name = calloc(1, file_lenght+1)) == NULL) {
                 return MEMORY_ALOC;
