@@ -252,7 +252,14 @@ void fill_list_command(struct client * client)
         current = current->next;
     }
 
-    client->state=TRANSACTION;
+    if(client->buffers.write_size+strlen(".\r\n") <= BUFSIZE){
+        strcat(client->buffers.write,".\r\n");
+        client->buffers.write_size += strlen(client->buffers.write);
+        suscribe_write(client);
+        client->state=TRANSACTION;
+    }
+
+
     return;
 }
 
@@ -271,11 +278,17 @@ return_status retr_command (struct pop3_command * command, struct client * clien
                 send(client->fd, "-ERR Could not open mail\r\n", 27, 0);
                 return FILE_ERR;
             } else {
-                send(client->fd, "+OK\r\n", 6, 0);
+                strcat(client->buffers.write, "+OK\r\n");
+                client->buffers.write_size += strlen(client->buffers.write);
+                suscribe_write(client); 
                 while ( fgets(buffer, BUFSIZE, file) != NULL) {
-                    send(client->fd, buffer, strlen(buffer), 0);
+                    if(client->buffers.write_size+strlen(buffer) > BUFSIZE){
+                        return;
+                    }
+                    strcat(client->buffers.write, buffer);
+                    client->buffers.write_size += strlen(client->buffers.write);
+                    suscribe_write(client); 
                 }
-                send(client->fd, "\r\n.\r\n", 6, 0);
             }
             fclose(file);
             return OK_STATUS;
