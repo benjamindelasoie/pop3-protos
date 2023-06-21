@@ -20,7 +20,7 @@ int handle_read (struct client * client) {
     return handle_error(client, ret);
 }
 
-int handle_write (struct client * client) {
+int handle_write (struct client * client, struct metrics * metricas) {
     int bytes_sent = send(client->fd, &client->buffers.write[client->buffers.write_index], client->buffers.write_size, MSG_NOSIGNAL);
     if (bytes_sent <= 0) {
         return -1;
@@ -28,13 +28,16 @@ int handle_write (struct client * client) {
 
     client->buffers.write_index += bytes_sent;
     client->buffers.write_size -= bytes_sent;
+    metricas->bytes_sent += bytes_sent;
 
     if (client->buffers.write_size > 0) {
         suscribe_write(client);
     } else if(client->state == WRITING_LIST){
         fill_list_command(client);
-    }else if (client->state == CLOSING) {
+    } else if (client->state == CLOSING) {
         return 0;
+    } else if (client->state == WRITING_MAIL) {
+        client->interest = READ_FILE;
     } else {
         for (size_t i = 0; i < BUFSIZE; i++)
         {

@@ -11,13 +11,15 @@ typedef enum client_state{
     TRANSACTION,
     UPDATE,
     CLOSING,
-    WRITING_LIST
+    WRITING_LIST,
+    WRITING_MAIL
 }client_state;
 
 typedef enum interest {
     NOOP,
     READ,
-    WRITE
+    WRITE,
+    READ_FILE
 } interest;
 
 #define BUFSIZE 256
@@ -54,6 +56,10 @@ typedef struct client{
     char * mail_directory;
     struct mail_file * first_mail;
     struct mail_file * current_mail;
+    int mail_fd;
+
+    // metricas 
+    struct metrics * metricas;
 
     bool user_auth;
 }client;

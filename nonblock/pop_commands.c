@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-
+#include <fcntl.h>
 
 #include <dirent.h>
 #include <sys/stat.h>
@@ -19,6 +19,7 @@
 
 #define USER "user"
 #define PASS "pass"
+#define MONITOR_LOGIN_TOKEN "MAGIA"
 
 return_status user_command (struct pop3_command * command, struct client * client) {
     
@@ -267,39 +268,33 @@ return_status retr_command (struct pop3_command * command, struct client * clien
     char *end = 0;
     const long sl = strtol(command->argument, &end, 10);
     struct mail_file * current = client->first_mail;
-    char buffer[BUFSIZE+1] = {0};
+    // char buffer[BUFSIZE+1] = {0};
     FILE * file;
+    int mail_fd;
     int bytes_read = 0;
-    int i = 1;
+
+    struct stat st;
 
     while(current != NULL) {
-        if (i == sl && current->to_delete == 0) {
-            if ((file = fopen(current->file_name, "r")) == NULL) {
-                send(client->fd, "-ERR Could not open mail\r\n", 27, 0);
+        if (current->id == sl && current->to_delete == 0) {
+            if ((mail_fd = open(current->file_name, O_RDONLY | O_NONBLOCK)) < 0 || stat(current->file_name, &st) < 0) {
+                if (mail_fd >= 0) {
+                    close(mail_fd);
+                }
                 return FILE_ERR;
             } else {
-                strcat(client->buffers.write, "+OK\r\n");
-                client->buffers.write_size += strlen(client->buffers.write);
-                suscribe_write(client); 
-                while ( fgets(buffer, BUFSIZE, file) != NULL) {
-                    if(client->buffers.write_size+strlen(buffer) > BUFSIZE){
-                        return;
-                    }
-                    strcat(client->buffers.write, buffer);
-                    client->buffers.write_size += strlen(client->buffers.write);
-                    suscribe_write(client); 
-                }
+                client->mail_fd = mail_fd;
+                sprintf(client->buffers.write, "+OK %lo Octets\r\n", st.st_size);
+                client->buffers.write_size = strlen(client->buffers.write);
+                suscribe_write(client);
+                client->state = WRITING_MAIL;
+                return OK_STATUS;
             }
-            fclose(file);
-            return OK_STATUS;
         }
         current = current->next;
-        i++;
     }
 
-    send(client->fd, "-ERR No such mail\r\n", 20, 0);
-
-    return OK_STATUS;
+    return suscribe_err(client);
 }
 
 return_status dele_command (struct pop3_command * command, struct client * client) {
@@ -337,4 +332,40 @@ return_status rset_command (struct pop3_command * command, struct client * clien
 
     // send(client->fd, "+OK\r\n", 6, 0);
     return suscribe_ok(client);
+}
+
+return_status historical_command (struct pop3_command * command, struct client * client) {
+    sprintf(client->buffers.write, "+OK Historical connections: %d\r\n", client->metricas->historical_connections);
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+    return OK_STATUS;
+}
+
+return_status concurrent_command (struct pop3_command * command, struct client * client) {
+    sprintf(client->buffers.write, "+OK Concurrent connections: %d\r\n", client->metricas->concurrent_connections);
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+    return OK_STATUS;
+}
+
+return_status bytes_sent_command (struct pop3_command * command, struct client * client) {
+    sprintf(client->buffers.write, "+OK Bytes sent: %d\r\n", client->metricas->bytes_sent);
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+    return OK_STATUS;
+}
+
+return_status monitor_login_command (struct pop3_command * command, struct client * client) {
+    if (strcmp(command->argument, MONITOR_LOGIN_TOKEN)) {
+        client->user_auth = true;
+    }
+    client->available_commands = monitor_commands;
+    client->available_commands_count = monitor_commands_count;
+    client->available_commands_functions = monitor_command_function;
+
+    sprintf(client->buffers.write, "+OK You are monitoring\r\n");
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+
+    return OK_STATUS;
 }

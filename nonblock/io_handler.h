@@ -3,6 +3,7 @@
 
 #include <sys/time.h>
 #include "errors.h"
+#include "metrics.h"
 
 #define MAX_CLIENTS FD_SETSIZE
 #define INVALID_FD(fd)  ((fd) < 0 || (fd) >= MAX_CLIENTS)
@@ -17,7 +18,7 @@ typedef struct select_info {
 
 struct client;
 
-int handle_write (struct client * client);
+int handle_write (struct client * client, struct metrics * metricas);
 int handle_read (struct client * client);
 void suscribe_read (struct client * client);
 void suscribe_write (struct client * client);
