@@ -47,27 +47,30 @@ int handle_write (struct client * client) {
     return 1;
 }
 
-void suscribe_err (struct client * client) {
+return_status suscribe_err (struct client * client) {
     int aux = sprintf(client->buffers.write, "-ERR\r\n");
     if (aux < 6) {
-        //errors
+        return STRING_COPY;
     } else {
         client->buffers.write_size = 7;
         client->buffers.write_index = 0;
     }
     suscribe_write(client);
+    return OK_STATUS;
 }
 
-void suscribe_ok (struct client * client) {
+return_status suscribe_ok (struct client * client) {
     int aux = sprintf(client->buffers.write, "+OK\r\n");
     if (aux < 5) {
         // log(DEBUG, "buffer: %s aux: %d", client->buffers.write, aux);
         //errors
+        return STRING_COPY;
     } else {
         client->buffers.write_size = 6;
         client->buffers.write_index = 0;
     }
     suscribe_write(client);
+    return OK_STATUS;
 }
 
 void suscribe_write (struct client * client) {
@@ -89,8 +92,22 @@ void recieve_flush(struct client * client) {
                 free (command);
                 suscribe_err(client);
             }else {
-                (*client->available_commands_functions[ok])(command, client);
+                return_status ret;
+                ret = (*client->available_commands_functions[ok])(command, client);
                 free(command);
+                if (ret != OK_STATUS) {
+                    switch (ret)
+                    {
+                    case STRING_COPY:
+                        return ret;
+                        break;
+                    case MEMORY_ALOC: case FILE_ERR:
+                        suscribe_err(client);
+                    default:
+                        return -1;
+                        break;
+                    }
+                }
                 // suscribe_ok(client);
             }
         } else {

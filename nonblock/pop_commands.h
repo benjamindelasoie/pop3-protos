@@ -2,6 +2,7 @@
 #define _POP_COMMANDS_H_
 
 #include "parser.h"
+#include "errors.h"
 
 static char * mail_directory;
 
@@ -9,18 +10,18 @@ struct pop3_command;
 struct client;
 
 //authorization commands
-void user_command (struct pop3_command * command, struct client * client);
-void pass_command (struct pop3_command * command, struct client * client);
-void quit_auth_command (struct pop3_command * command, struct client * client);
+return_status user_command (struct pop3_command * command, struct client * client);
+return_status pass_command (struct pop3_command * command, struct client * client);
+return_status quit_auth_command (struct pop3_command * command, struct client * client);
 
 //transaction commands
-void quit_command (struct pop3_command * command, struct client * client);
-void stat_command (struct pop3_command * command, struct client * client);
+return_status quit_command (struct pop3_command * command, struct client * client);
+return_status stat_command (struct pop3_command * command, struct client * client);
 void list_command (struct pop3_command * command, struct client * client);
 void retr_command (struct pop3_command * command, struct client * client);
-void dele_command (struct pop3_command * command, struct client * client);
-void noop_command (struct pop3_command * command, struct client * client);
-void rset_command (struct pop3_command * command, struct client * client);
+return_status dele_command (struct pop3_command * command, struct client * client);
+return_status noop_command (struct pop3_command * command, struct client * client);
+return_status rset_command (struct pop3_command * command, struct client * client);
 
 void fill_list_command(struct client * client);
 
@@ -31,7 +32,7 @@ static int authorization_command_count = 3;
 static char * transaction_command[] = {"QUIT", "STAT", "LIST", "RETR", "DELE", "NOOP", "RSET"};
 static int transaction_command_count = 7;
 
-typedef void (*command_function) (struct pop3_command *, struct client *);
+typedef return_status (*command_function) (struct pop3_command *, struct client *);
 
 static command_function authorization_command_function[] = 
     {(command_function)&quit_auth_command,
