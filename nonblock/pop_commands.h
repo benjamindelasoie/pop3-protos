@@ -29,21 +29,25 @@ return_status historical_command (struct pop3_command * command, struct client *
 return_status concurrent_command (struct pop3_command * command, struct client * client);
 return_status bytes_sent_command (struct pop3_command * command, struct client * client);
 
+// configuration commands
+return_status adus_command (struct pop3_command * command, struct client * client);
+return_status rmus_command (struct pop3_command * command, struct client * client);
+
 
 void fill_list_command(struct client * client);
 void remove_logged_user(struct client * client);
 int read_mail(struct client * client);
 
 // AUTHENTICATION State 
-static char * authorization_command[] = {"QUIT", "USER", "PASS", "MONI"};
-static int authorization_command_count = 4;
+static char * authorization_command[] = {"QUIT", "USER", "PASS"};
+static int authorization_command_count = 3;
 // TRANSACTION State 
 static char * transaction_command[] = {"QUIT", "STAT", "LIST", "RETR", "DELE", "NOOP", "RSET"};
 static int transaction_command_count = 7;
 
 // monitor commands
-static char * monitor_commands[] = { "QUIT", "CONH", "CONC", "BYTS", };
-static int monitor_commands_count = 4;
+static char * monitor_commands[] = { "QUIT", "CONH", "CONC", "BYTS", "ADUS","RMUS"};
+static int monitor_commands_count = 6;
 
 static char * monitor_auth_commands[] = { "MONI",  "QUIT" };
 static int monitor_auth_commands_count = 2;
@@ -80,6 +84,8 @@ static command_function monitor_command_function[] =
     (command_function) &historical_command,
     (command_function) &concurrent_command,
     (command_function) &bytes_sent_command,
+    (command_function) &adus_command,
+    (command_function) &rmus_command  
 };
 
 #endif

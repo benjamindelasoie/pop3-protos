@@ -59,7 +59,7 @@ return_status user_command (struct pop3_command * command, struct client * clien
             }
         }
 
-        if (flag && buffer[i] == ' ' && i == arg_length) {
+        if (flag && buffer[i] == ',' && i == arg_length) {
             client->user_auth = true;
             client->username = calloc(1,strlen(command->argument) + 1);
             if (client->username == NULL) {
@@ -88,7 +88,7 @@ return_status pass_command (struct pop3_command * command, struct client * clien
             int flag = 1;
             int i, j=0;
 
-            while (buffer[j] != 0 && buffer[j++] != ' ');
+            while (buffer[j] != 0 && buffer[j++] != ',');
 
             for(i=0; buffer[j]!=0 && buffer[j]!='\n' && command->argument[i]!= 0 && flag && i<arg_length && j<BUFSIZE; i++, j++) {
                 if (command->argument[i] != buffer[j]) {
@@ -120,12 +120,16 @@ return_status pass_command (struct pop3_command * command, struct client * clien
 
                     return suscribe_ok(client);
                 } else {
+                    client->user_auth = false;
+                    free(client->username);
+                    client->username = NULL;
                     return ret;
                 }
             }
         }
         client->user_auth = false;
         free(client->username);
+        client->username = NULL;
         return suscribe_err(client);
     } else {
         return suscribe_err(client);
@@ -424,6 +428,159 @@ return_status monitor_login_command (struct pop3_command * command, struct clien
     client->available_commands_functions = monitor_command_function;
 
     sprintf(client->buffers.write, "+OK You are monitoring\r\n");
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+
+    return OK_STATUS;
+}
+
+return_status rmus_command (struct pop3_command * command, struct client * client) {
+    if (command->argument[0] == '\0')
+    {
+        return suscribe_err(client);
+    }
+
+    current = first_logged_in_user;
+    while (current != NULL)
+    {
+        if(strcmp(current->username, command->argument) == 0){
+            sprintf(client->buffers.write, "-ERR user is logged in\r\n");
+            client->buffers.write_size = strlen(client->buffers.write);
+            suscribe_write(client);
+            return OK_STATUS;
+        }
+
+        current = current->next;
+    }
+
+
+    FILE * file = fopen("users.txt", "r");
+    if (file == NULL) {
+        return FILE_ERR;
+    }
+    char buffer[BUFSIZE + 1] = {0};
+    int arg_length = strlen(command->argument);
+    int line = 1;
+
+    if (command->argument[0] == 0) {
+        return suscribe_err(client);
+    }
+
+    while (fgets(buffer, BUFSIZE, file) != NULL) {
+        int flag = 1;
+        int i;
+        for(i=0; buffer[i]!=0 && command->argument[i]!= 0 && flag && i<arg_length &&i<BUFSIZE; i++) {
+            if (command->argument[i] != buffer[i]) {
+                flag = 0;
+            }
+        }
+
+        if (flag && buffer[i] == ',' && i == arg_length) {
+            FILE *temp;
+
+            temp = fopen("delete.tmp", "w");
+            if (temp == NULL){
+                fclose(file);
+                return FILE_ERR;
+            }
+
+
+            rewind(file);
+
+            
+            int count = 1;
+            while ((fgets(buffer, BUFSIZE, file)) != NULL){
+                if (line != count)
+                    fputs(buffer, temp);
+                count++;
+            }
+
+            fclose(file);
+            fclose(temp);
+
+            remove("users.txt");
+            rename("delete.tmp", "users.txt");
+
+            sprintf(client->buffers.write, "+OK user %s removed succesfully\r\n", command->argument);
+            client->buffers.write_size = strlen(client->buffers.write);
+            suscribe_write(client);
+            return OK_STATUS;
+        }
+        line++;
+    }
+
+    fclose(file);
+
+    sprintf(client->buffers.write, "-ERR user not found\r\n");
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+    return OK_STATUS;
+}
+
+return_status adus_command (struct pop3_command * command, struct client * client) {
+    if (command->argument[0] == '\0')
+    {
+        return suscribe_err(client);
+    }
+
+    int commas = 0;
+    int i = 0;
+    while (command->argument[i] != '\0')
+    {
+        if (command->argument[i] == ',')
+        {
+            commas++;
+        }
+        i++;
+    }
+    
+    if (commas != 1 || command->argument[0] == ',' || command->argument[i-1] == ',')
+    {
+        sprintf(client->buffers.write, "-ERR invalid format\r\n");
+        client->buffers.write_size = strlen(client->buffers.write);
+        suscribe_write(client);
+        return OK_STATUS;
+    }
+
+    FILE * file = fopen("users.txt", "r");
+    if (file == NULL) {
+        return FILE_ERR;
+    }
+    char buffer[BUFSIZE + 1] = {0};
+    int arg_length = strlen(command->argument);
+
+
+    if (command->argument[0] == 0) {
+        return suscribe_err(client);
+    }
+
+    while (fgets(buffer, BUFSIZE, file) != NULL) {
+        int flag = 1;
+        i =0;
+        for(i=0; buffer[i]!=0 && command->argument[i]!= 0 && flag && i<arg_length &&i<BUFSIZE; i++) {
+            if (command->argument[i] != buffer[i]) {
+                flag = 0;
+            }
+        }
+
+        if (flag && buffer[i] == ',' && i == arg_length) {
+            fclose(file);
+            sprintf(client->buffers.write, "-ERR user %s already exists\r\n", command->argument);
+            client->buffers.write_size = strlen(client->buffers.write);
+            suscribe_write(client);
+            return OK_STATUS;
+        }
+    }
+    fclose(file);
+
+
+    
+
+    file = fopen("users.txt", "a");
+    fprintf(file,"\n%s",command->argument);
+    fclose(file);
+
+    sprintf(client->buffers.write, "+OK user added sucesfully\r\n");
     client->buffers.write_size = strlen(client->buffers.write);
     suscribe_write(client);
 
