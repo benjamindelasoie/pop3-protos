@@ -30,6 +30,10 @@ return_status user_command (struct pop3_command * command, struct client * clien
     char buffer[BUFSIZE + 1] = {0};
     int arg_length = strlen(command->argument);
 
+    if (command->argument[0] == 0) {
+        return suscribe_err(client);
+    }
+
     while (fgets(buffer, BUFSIZE, file) != NULL) {
         int flag = 1;
         int i;
@@ -295,6 +299,25 @@ return_status retr_command (struct pop3_command * command, struct client * clien
     }
 
     return suscribe_err(client);
+}
+
+int read_mail(struct client * client) {
+    int bytes_read = read(client->mail_fd, client->buffers.write, BUFSIZE);
+    if (bytes_read < 0) {
+        client->state = TRANSACTION;
+        client->interest = WRITE;
+        close(client->mail_fd);
+    } else if (bytes_read == 0) {
+        client->state = TRANSACTION;
+        sprintf(client->buffers.write, ".\r\n");
+        client->buffers.write_size = 3;
+        suscribe_write(client);
+        close(client->mail_fd);
+    } else {
+        client->buffers.write_size = bytes_read;
+        suscribe_write(client);
+    }
+    return bytes_read;
 }
 
 return_status dele_command (struct pop3_command * command, struct client * client) {

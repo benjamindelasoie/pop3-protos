@@ -33,17 +33,25 @@ int handle_write (struct client * client, struct metrics * metricas) {
     if (client->buffers.write_size > 0) {
         suscribe_write(client);
     } else if(client->state == WRITING_LIST){
+        for (size_t i = 0; i < BUFSIZE; i++) {
+            client->buffers.write[i] = 0;
+        }
+        client->buffers.write_index = 0;
+        client->buffers.write_size = 0;
         fill_list_command(client);
     } else if (client->state == CLOSING) {
         return 0;
     } else if (client->state == WRITING_MAIL) {
-        client->interest = READ_FILE;
-    } else {
-        for (size_t i = 0; i < BUFSIZE; i++)
-        {
+        for (size_t i = 0; i < BUFSIZE; i++) {
             client->buffers.write[i] = 0;
         }
-        
+        client->buffers.write_index = 0;
+        client->buffers.write_size = 0;
+        client->interest = READ_FILE;
+    } else {
+        for (size_t i = 0; i < BUFSIZE; i++) {
+            client->buffers.write[i] = 0;
+        }
         client->buffers.write_index = 0;
         client->buffers.write_size = 0;
         if (client->buffers.bytes_recieved > 0) {

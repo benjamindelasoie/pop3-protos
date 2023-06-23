@@ -11,6 +11,7 @@
 #include "socket_util.h"
 #include "client_util.h"
 #include "metrics.h"
+#include "pop_commands.h"
 
 static bool done = false;
 struct client * clients[MAX_CLIENTS];
@@ -103,7 +104,7 @@ int main(int argc, char *argv[]) {
                     }
                 } else if (clients[i]->interest == READ_FILE) {
                     mails_fd[clients[i]->mail_fd] = clients[i]->fd;
-                    FD_SET(clients[i]->mail_fd, &select_info.writefds);
+                    FD_SET(clients[i]->mail_fd, &select_info.readfds);
                     if (clients[i]->mail_fd > select_info.max_fd) {
                         select_info.max_fd = clients[i]->mail_fd;
                     }
@@ -197,6 +198,10 @@ int main(int argc, char *argv[]) {
                     }
                 } else if (mails_fd[i] != 0) {
                     // read_mail;
+                    if (read_mail(clients[mails_fd[i]]) <= 0) {
+                        clients[mails_fd[i]]->mail_fd = 0;
+                        mails_fd[i] = 0;
+                    }
                 }
             }
         }
