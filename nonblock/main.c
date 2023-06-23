@@ -33,6 +33,7 @@ static void sigterm_handler(const int signal) {
 
 int main(int argc, char *argv[]) {
     unsigned port = 1080;
+    unsigned port2 = 1800;
 
     // setear en 0 las metricas
     // memset(metricas, 0, sizeof(metrics));
@@ -44,7 +45,7 @@ int main(int argc, char *argv[]) {
     if(argc == 2) {
         // utilizamos el default
         mail_directory = argv[1];
-    } else if(argc == 3) {
+    } else if(argc == 4) {
         mail_directory = argv[1];
         char *end     = 0;
         const long sl = strtol(argv[2], &end, 10);
@@ -55,8 +56,16 @@ int main(int argc, char *argv[]) {
             log(FATAL, "port should be an integer: %s\n", argv[2]);
         }
         port = sl;
+
+        const long sl2 = strtol(argv[3], &end, 10);
+        if (end == argv[3]|| '\0' != *end 
+           || ((LONG_MIN == sl || LONG_MAX == sl) && ERANGE == errno)
+           || sl2 < 0 || sl2 > USHRT_MAX) {
+            log(FATAL, "port should be an integer: %s\n", argv[2]);
+        }
+        port2 = sl2;
     } else {
-        log(FATAL, "usage: %s <Mail Directory> <Server Port>", argv[0]);
+        log(FATAL, "usage: %s <Mail Directory> <Server Port> <Monitor Port>", argv[0]);
     }
 
     close(0);
@@ -65,7 +74,7 @@ int main(int argc, char *argv[]) {
         log(FATAL, "%s", "Could not set server to nonblock");
     }
 
-    const int monitor_server = setup_server_socket(1800);
+    const int monitor_server = setup_server_socket(port2);
     if (set_socket_nonblock (monitor_server) < 0) {
         log(FATAL, "%s", "Could not set server to nonblock");
     }
