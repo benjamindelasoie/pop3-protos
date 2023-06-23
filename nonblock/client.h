@@ -24,7 +24,7 @@ typedef enum interest {
     READ_FILE
 } interest;
 
-#define BUFSIZE 256
+#define BUFSIZE 8192
 
 typedef struct buffers {
     char recieve[BUFSIZE+1];
