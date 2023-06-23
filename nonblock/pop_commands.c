@@ -34,7 +34,10 @@ return_status user_command (struct pop3_command * command, struct client * clien
     while (current != NULL)
     {
         if(strcmp(current->username, command->argument) == 0){
-            return suscribe_err(client);
+                sprintf(client->buffers.write, "-ERR user is logged in\r\n");
+                client->buffers.write_size = strlen(client->buffers.write);
+                suscribe_write(client);
+                return OK_STATUS;
         }
         current = current->next;
     }
@@ -70,7 +73,11 @@ return_status user_command (struct pop3_command * command, struct client * clien
         }
     }
 
-    return suscribe_err(client);
+    sprintf(client->buffers.write, "-ERR user not found\r\n");
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+    return OK_STATUS;
+
 }
 
 return_status pass_command (struct pop3_command * command, struct client * client) {
@@ -118,7 +125,10 @@ return_status pass_command (struct pop3_command * command, struct client * clien
                         current->next= aux;
                     }
 
-                    return suscribe_ok(client);
+                    sprintf(client->buffers.write, "+OK logging in\r\n");
+                    client->buffers.write_size = strlen(client->buffers.write);
+                    suscribe_write(client);
+                    return OK_STATUS;
                 } else {
                     client->user_auth = false;
                     free(client->username);
@@ -157,7 +167,10 @@ return_status quit_command (struct pop3_command * command, struct client * clien
 
 
     client->state = CLOSING;
-    return suscribe_ok(client);
+    sprintf(client->buffers.write, "+OK logging out\r\n");
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+    return OK_STATUS;
 }
 
 void remove_logged_user(struct client * client){
@@ -374,7 +387,10 @@ return_status dele_command (struct pop3_command * command, struct client * clien
     while(current != NULL) {
         if (i == sl && current->to_delete == 0) {
             current->to_delete = 1;
-            return suscribe_ok(client);
+            sprintf(client->buffers.write, "+OK mail deleted\r\n");
+            client->buffers.write_size = strlen(client->buffers.write);
+            suscribe_write(client);
+            return OK_STATUS;
         }
         current = current->next;
         i++;
@@ -395,10 +411,19 @@ return_status rset_command (struct pop3_command * command, struct client * clien
         current = current->next;
     }
 
-    return suscribe_ok(client);
+    sprintf(client->buffers.write, "+OK mails reset done\r\n");
+    client->buffers.write_size = strlen(client->buffers.write);
+    suscribe_write(client);
+    return OK_STATUS;
 }
 
 return_status historical_command (struct pop3_command * command, struct client * client) {
+    if (command->argument[0] != '\0'){
+        sprintf(client->buffers.write, "-ERR this command does not receive arguments\r\n");
+        client->buffers.write_size = strlen(client->buffers.write);
+        suscribe_write(client);
+        return OK_STATUS;
+    }
     sprintf(client->buffers.write, "+OK Historical connections: %d\r\n", client->metricas->historical_connections);
     client->buffers.write_size = strlen(client->buffers.write);
     suscribe_write(client);
@@ -406,6 +431,12 @@ return_status historical_command (struct pop3_command * command, struct client *
 }
 
 return_status concurrent_command (struct pop3_command * command, struct client * client) {
+    if (command->argument[0] != '\0'){
+        sprintf(client->buffers.write, "-ERR this command does not receive arguments\r\n");
+        client->buffers.write_size = strlen(client->buffers.write);
+        suscribe_write(client);
+        return OK_STATUS;
+    }
     sprintf(client->buffers.write, "+OK Concurrent connections: %d\r\n", client->metricas->concurrent_connections);
     client->buffers.write_size = strlen(client->buffers.write);
     suscribe_write(client);
@@ -413,6 +444,12 @@ return_status concurrent_command (struct pop3_command * command, struct client *
 }
 
 return_status bytes_sent_command (struct pop3_command * command, struct client * client) {
+    if (command->argument[0] != '\0'){
+        sprintf(client->buffers.write, "-ERR this command does not receive arguments\r\n");
+        client->buffers.write_size = strlen(client->buffers.write);
+        suscribe_write(client);
+        return OK_STATUS;
+    }
     sprintf(client->buffers.write, "+OK Bytes sent: %d\r\n", client->metricas->bytes_sent);
     client->buffers.write_size = strlen(client->buffers.write);
     suscribe_write(client);
