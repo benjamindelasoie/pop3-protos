@@ -9,13 +9,9 @@
 #include "logger.h"
 
 int setup_server_socket(unsigned port) {
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family      = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port        = htons(port);
+    struct sockaddr_in6 addr;
 
-    const int server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    const int server = socket(AF_INET6, SOCK_STREAM, 0);
     if(server < 0) {
         log(FATAL, "%s", "unable to create socket");
     }
@@ -23,35 +19,14 @@ int setup_server_socket(unsigned port) {
     log(DEBUG, "Listening on TCP port %d\n", port);
 
     // man 7 ip. no importa reportar nada si falla.
-    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int));
-
-    if(bind(server, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
-        log(FATAL, "%s", "unable to bind socket");
+    if (setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int)) < 0) {
+        log(FATAL, "%s", "setsockopt failed");
     }
 
-    if (listen(server, 20) < 0) {
-        log(FATAL, "%s", "unable to listen");
-    }
-
-    return server;
-}
-
-int setup_server_socket_ipv6(unsigned port) {
-    struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
-    addr.sin_family      = AF_INET6;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port        = htons(port);
-
-    const int server = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-    if(server < 0) {
-        log(FATAL, "%s", "unable to create socket");
-    }
-
-    log(DEBUG, "Listening on TCP port %d\n", port);
-
-    // man 7 ip. no importa reportar nada si falla.
-    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &(int){ 1 }, sizeof(int));
+    addr.sin6_family      = AF_INET6;
+    addr.sin6_addr        = in6addr_any;
+    addr.sin6_port        = htons(port);
 
     if(bind(server, (struct sockaddr*) &addr, sizeof(addr)) < 0) {
         log(FATAL, "%s", "unable to bind socket");

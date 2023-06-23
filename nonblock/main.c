@@ -61,14 +61,10 @@ int main(int argc, char *argv[]) {
 
     close(0);
     const int server = setup_server_socket(port);
-    const int server_v6 = setup_server_socket_ipv6(port);
-
     if (set_socket_nonblock (server) < 0) {
         log(FATAL, "%s", "Could not set server to nonblock");
     }
-    if (set_socket_nonblock (server_v6) < 0) {
-        log(FATAL, "%s", "Could not set ipv6 server to nonblock");
-    }
+
     const int monitor_server = setup_server_socket(1800);
     if (set_socket_nonblock (monitor_server) < 0) {
         log(FATAL, "%s", "Could not set server to nonblock");
@@ -92,14 +88,12 @@ int main(int argc, char *argv[]) {
         if (select_info.max_fd < server) {
             select_info.max_fd = server;
         }
+
         FD_SET(monitor_server, &select_info.readfds);
         if (select_info.max_fd < monitor_server) {
             select_info.max_fd = monitor_server;
         }
-        FD_SET(server_v6, &select_info.readfds);
-        if (select_info.max_fd < server_v6) {
-            select_info.max_fd = server_v6;
-        }
+
         for (int i=0; i<MAX_CLIENTS; i++) {
             if (clients[i] != NULL) {
                 if (clients[i]->interest == READ) {
@@ -152,38 +146,6 @@ int main(int argc, char *argv[]) {
                 if (clients[client_socket] == NULL) {
                     close(client_socket);
                     log(ERROR, "%s","Malloc failed");
-                } else {
-                    suscribe_ok(clients[client_socket]);
-                    clients[client_socket]->mail_directory = mail_directory;
-                    clients[client_socket]->fd = client_socket;
-                    clients[client_socket]->state = AUTHORIZATION;
-                    clients[client_socket]->available_commands = authorization_command;
-                    clients[client_socket]->available_commands_count = authorization_command_count;
-                    clients[client_socket]->available_commands_functions = authorization_command_function;
-                    set_socket_nonblock (client_socket);
-
-                    metricas->concurrent_connections++;
-                    metricas->historical_connections++;
-                }
-            }
-        }
-
-        if (FD_ISSET(server_v6, &select_info.readfds)) {
-            struct sockaddr_storage client_addr; // Client address
-            // Set length of client address structure (in-out parameter)
-            socklen_t client_addr_length = sizeof(client_addr);
-
-            // Wait for a client to connect
-            int client_socket = accept(server, (struct sockaddr *) &client_addr, &client_addr_length);
-            if (INVALID_FD(client_socket)) {
-                // close(client_socket);
-                log(ERROR, "%s", "accept() for ipv6 connection failed");
-                // return -1;
-            } else { 
-                clients[client_socket] = calloc(1, sizeof(struct client));
-                if (clients[client_socket] == NULL) {
-                    close(client_socket);
-                    log(ERROR, "%s","Malloc failed on ipv6 client creation");
                 } else {
                     suscribe_ok(clients[client_socket]);
                     clients[client_socket]->mail_directory = mail_directory;
