@@ -24,7 +24,7 @@ return_status noop_command (struct pop3_command * command, struct client * clien
 return_status rset_command (struct pop3_command * command, struct client * client);
 
 // monitor commands
-return_status monitor_login_command (struct pop3_command * command, struct client * client); // ESTE VA ESTADO DE AUTHORIZATION
+return_status monitor_login_command (struct pop3_command * command, struct client * client); 
 return_status historical_command (struct pop3_command * command, struct client * client);
 return_status concurrent_command (struct pop3_command * command, struct client * client);
 return_status bytes_sent_command (struct pop3_command * command, struct client * client);

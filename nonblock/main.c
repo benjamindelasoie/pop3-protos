@@ -167,9 +167,7 @@ int main(int argc, char *argv[]) {
             // Wait for a client to connect
             int client_socket = accept(monitor_server, (struct sockaddr *) &client_addr, &client_addr_length);
             if (INVALID_FD(client_socket)) {
-                // close(client_socket);
                 log(ERROR, "%s", "accept() failed");
-                // return -1;
             } else { 
                 clients[client_socket] = calloc(1, sizeof(struct client));
                 if (clients[client_socket] == NULL) {
@@ -199,7 +197,6 @@ int main(int argc, char *argv[]) {
                         metricas->concurrent_connections--;
                     }
                 } else if (mails_fd[i] != 0) {
-                    // read_mail;
                     if (read_mail(clients[mails_fd[i]]) <= 0) {
                         clients[mails_fd[i]]->mail_fd = 0;
                         mails_fd[i] = 0;

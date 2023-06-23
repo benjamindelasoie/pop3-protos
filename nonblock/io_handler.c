@@ -11,7 +11,6 @@ int handle_read (struct client * client) {
         if (client->buffers.bytes_recieved == 0) {
             return 0;
         } else {
-            //check errors
             return -1; 
         }
     }
@@ -96,8 +95,7 @@ return_status suscribe_err (struct client * client) {
 return_status suscribe_ok (struct client * client) {
     int aux = sprintf(client->buffers.write, "+OK\r\n");
     if (aux < 5) {
-        // log(DEBUG, "buffer: %s aux: %d", client->buffers.write, aux);
-        //errors
+
         return STRING_COPY;
     } else {
         client->buffers.write_size = 6;
@@ -130,7 +128,6 @@ return_status recieve_flush(struct client * client) {
                 ret = (*client->available_commands_functions[ok])(command, client);
                 free(command);
                 return ret;
-                // suscribe_ok(client);
             }
         } else {
             return suscribe_err(client);

@@ -66,13 +66,11 @@ return_status user_command (struct pop3_command * command, struct client * clien
                 return MEMORY_ALOC;
             }
             strcpy(client->username, command->argument);
-            // send(client->fd, "+OK\r\n", 6, 0);
             return suscribe_ok(client);
         }
     }
 
     return suscribe_err(client);
-    // send(client->fd, "-ERR mailbox not found\r\n", 25, 0);
 }
 
 return_status pass_command (struct pop3_command * command, struct client * client) {
@@ -120,10 +118,8 @@ return_status pass_command (struct pop3_command * command, struct client * clien
                         current->next= aux;
                     }
 
-                    // send(client->fd, "+OK\r\n", 6, 0);
                     return suscribe_ok(client);
                 } else {
-                    //TODO: Check errors
                     return ret;
                 }
             }
@@ -131,17 +127,12 @@ return_status pass_command (struct pop3_command * command, struct client * clien
         client->user_auth = false;
         free(client->username);
         return suscribe_err(client);
-        // send(client->fd, "-ERR incorrect credentials, try again.\r\n", 41, 0);
     } else {
-        // client->user_auth = false;
-        // free(client->username);
-        // send(client->fd, "-ERR no user provided\r\n", 24, 0);
         return suscribe_err(client);
     }
 }
 
 return_status quit_auth_command (struct pop3_command * command, struct client * client) {
-    // send(client->fd, "+OK Logging out\r\n", 18, 0);
 
     client->state = CLOSING;
     return suscribe_ok(client);
@@ -161,7 +152,6 @@ return_status quit_command (struct pop3_command * command, struct client * clien
     remove_logged_user(client);
 
 
-    // send(client->fd, "+OK Logging out\r\n", 18, 0);
     client->state = CLOSING;
     return suscribe_ok(client);
 }
@@ -193,7 +183,6 @@ return_status stat_command (struct pop3_command * command, struct client * clien
     int file_count = 0;
     off_t dir_size = 0;
     struct stat st;
-    // char buffer[BUFSIZE+1] = {0};
     
     struct mail_file * current = client->first_mail;
 
@@ -217,8 +206,6 @@ return_status stat_command (struct pop3_command * command, struct client * clien
     client->buffers.write_size = strlen(client->buffers.write);
     suscribe_write(client);
     return OK_STATUS;
-    // sprintf(buffer, "+OK %d %lo\r\n", file_count, dir_size);
-    // send(client->fd, buffer, strlen(buffer), 0);
 }
 
 return_status list_command (struct pop3_command * command, struct client * client) {
@@ -327,7 +314,6 @@ return_status retr_command (struct pop3_command * command, struct client * clien
     char *end = 0;
     const long sl = strtol(command->argument, &end, 10);
     struct mail_file * current = client->first_mail;
-    // char buffer[BUFSIZE+1] = {0};
     FILE * file;
     int mail_fd;
     int bytes_read = 0;
@@ -385,18 +371,15 @@ return_status dele_command (struct pop3_command * command, struct client * clien
         if (i == sl && current->to_delete == 0) {
             current->to_delete = 1;
             return suscribe_ok(client);
-            // send(client->fd, "+OK message deleted\r\n",22,0);
         }
         current = current->next;
         i++;
     }
 
     return suscribe_err(client);
-    // send(client->fd, "-ERR No such mail\r\n", 20, 0);
 }
 
 return_status noop_command (struct pop3_command * command, struct client * client) {
-    // send(client->fd, "+OK\r\n", 6, 0);
     return suscribe_ok(client);
 }
 
@@ -408,7 +391,6 @@ return_status rset_command (struct pop3_command * command, struct client * clien
         current = current->next;
     }
 
-    // send(client->fd, "+OK\r\n", 6, 0);
     return suscribe_ok(client);
 }
 
