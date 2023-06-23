@@ -24,6 +24,7 @@ static void sigterm_handler(const int signal) {
     for(int i=0; i<MAX_CLIENTS; i++) {
         if (clients[i] != NULL) {
             close(i);
+            remove_logged_user(clients[i]);
             free_client(clients[i]);
         }
     }
@@ -191,6 +192,7 @@ int main(int argc, char *argv[]) {
                 FD_CLR(i, &select_info.readfds);
                 if (clients[i] != NULL) {
                     if(handle_read(clients[i]) <= 0) {
+                        remove_logged_user(clients[i]);
                         free_client(clients[i]);
                         close(i);
                         clients[i] = NULL;
@@ -211,6 +213,7 @@ int main(int argc, char *argv[]) {
                 if (FD_ISSET(i, &select_info.writefds)) {
                     FD_CLR(i, &select_info.writefds);
                     if (handle_write(clients[i], metricas) <= 0) {
+                        remove_logged_user(clients[i]);
                         free_client(clients[i]);
                         close(i);
                         clients[i] = NULL;

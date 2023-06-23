@@ -31,6 +31,7 @@ return_status bytes_sent_command (struct pop3_command * command, struct client *
 
 
 void fill_list_command(struct client * client);
+void remove_logged_user(struct client * client);
 int read_mail(struct client * client);
 
 // AUTHENTICATION State 
