@@ -10,9 +10,12 @@
 #include "client.h"
 #include "socket_util.h"
 #include "client_util.h"
+#include "metrics.h"
 
 static bool done = false;
 struct client * clients[MAX_CLIENTS];
+struct metrics * metricas;
+int mails_fd[MAX_CLIENTS];
 
 static void sigterm_handler(const int signal) {
     log(DEBUG, "signal %d, cleaning up and exiting\n",signal);
@@ -29,6 +32,13 @@ static void sigterm_handler(const int signal) {
 
 int main(int argc, char *argv[]) {
     unsigned port = 1080;
+
+    // setear en 0 las metricas
+    // memset(metricas, 0, sizeof(metrics));
+    metricas = calloc(1, sizeof(struct metrics));
+    if (metricas == NULL) {
+        log(FATAL, "%s", "No space for metrics");
+    }
 
     if(argc == 2) {
         // utilizamos el default
@@ -53,6 +63,10 @@ int main(int argc, char *argv[]) {
     if (set_socket_nonblock (server) < 0) {
         log(FATAL, "%s", "Could not set server to nonblock");
     }
+    const int monitor_server = setup_server_socket(1800);
+    if (set_socket_nonblock (monitor_server) < 0) {
+        log(FATAL, "%s", "Could not set server to nonblock");
+    }
 
     // registrar sigterm es útil para terminar el programa normalmente.
     // esto ayuda mucho en herramientas como valgrind.
@@ -72,6 +86,10 @@ int main(int argc, char *argv[]) {
         if (select_info.max_fd < server) {
             select_info.max_fd = server;
         }
+        FD_SET(monitor_server, &select_info.readfds);
+        if (select_info.max_fd < monitor_server) {
+            select_info.max_fd = monitor_server;
+        }
         for (int i=0; i<MAX_CLIENTS; i++) {
             if (clients[i] != NULL) {
                 if (clients[i]->interest == READ) {
@@ -83,6 +101,12 @@ int main(int argc, char *argv[]) {
                     FD_SET(i, &select_info.writefds);
                     if (i > select_info.max_fd) {
                     select_info.max_fd = i;
+                    }
+                } else if (clients[i]->interest == READ_FILE) {
+                    mails_fd[clients[i]->mail_fd] = clients[i]->fd;
+                    FD_SET(clients[i]->mail_fd, &select_info.writefds);
+                    if (clients[i]->mail_fd > select_info.max_fd) {
+                        select_info.max_fd = clients[i]->mail_fd;
                     }
                 }
             }
@@ -96,6 +120,7 @@ int main(int argc, char *argv[]) {
                     close(i);
                     free_client(clients[i]);
                     clients[i] = NULL;
+                    metricas->concurrent_connections--;
                 }
             }
             log(FATAL, "Select error, aborting %d", errno);
@@ -126,36 +151,71 @@ int main(int argc, char *argv[]) {
                     clients[client_socket]->available_commands_count = authorization_command_count;
                     clients[client_socket]->available_commands_functions = authorization_command_function;
                     set_socket_nonblock (client_socket);
+
+                    metricas->concurrent_connections++;
+                    metricas->historical_connections++;
+                }
+            }
+        }
+
+        if (FD_ISSET(monitor_server, &select_info.readfds)) {
+            struct sockaddr_storage client_addr; // Client address
+            // Set length of client address structure (in-out parameter)
+            socklen_t client_addr_length = sizeof(client_addr);
+
+            // Wait for a client to connect
+            int client_socket = accept(monitor_server, (struct sockaddr *) &client_addr, &client_addr_length);
+            if (INVALID_FD(client_socket)) {
+                // close(client_socket);
+                log(ERROR, "%s", "accept() failed");
+                // return -1;
+            } else { 
+                clients[client_socket] = calloc(1, sizeof(struct client));
+                if (clients[client_socket] == NULL) {
+                    close(client_socket);
+                    log(ERROR, "%s","Malloc failed");
+                } else {
+                    suscribe_ok(clients[client_socket]);
+                    set_socket_nonblock (client_socket);
+                    clients[client_socket]->fd = client_socket;
+                    clients[client_socket]->metricas = metricas;
+                    clients[client_socket]->available_commands = monitor_auth_commands;
+                    clients[client_socket]->available_commands_count = monitor_auth_commands_count;
+                    clients[client_socket]->available_commands_functions = monitor_auth_command_function;
                 }
             }
         }
 
         for (int i = 0; i< MAX_CLIENTS; i++) {
-            if (clients[i] != NULL) {
-                if (FD_ISSET(i, &select_info.readfds)) {
-                    FD_CLR(i, &select_info.readfds);
+            if (FD_ISSET(i, &select_info.readfds)) {
+                FD_CLR(i, &select_info.readfds);
+                if (clients[i] != NULL) {
                     if(handle_read(clients[i]) <= 0) {
                         remove_logged_user(clients[i]);
                         free_client(clients[i]);
                         close(i);
                         clients[i] = NULL;
+                        metricas->concurrent_connections--;
                     }
-                }
-            }
-        }
-        for (int i = 0; i< MAX_CLIENTS; i++) {
-            if (clients[i] != NULL) {
-                if (FD_ISSET(i, &select_info.writefds)) {
-                    FD_CLR(i, &select_info.writefds);
-                    if (handle_write(clients[i]) <= 0) {
-                        remove_logged_user(clients[i]);
-                        free_client(clients[i]);
-                        close(i);
-                        clients[i] = NULL;
-                    }
+                } else if (mails_fd[i] != 0) {
+                    // read_mail;
                 }
             }
         }
 
+        for (int i = 0; i< MAX_CLIENTS; i++) {
+            if (clients[i] != NULL) {
+                if (FD_ISSET(i, &select_info.writefds)) {
+                    FD_CLR(i, &select_info.writefds);
+                    if (handle_write(clients[i], metricas) <= 0) {
+                        remove_logged_user(clients[i]);
+                        free_client(clients[i]);
+                        close(i);
+                        clients[i] = NULL;
+                        metricas->concurrent_connections--;
+                    }
+                }
+            }
+        }
     }
-}
+} 
