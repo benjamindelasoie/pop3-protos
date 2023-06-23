@@ -59,17 +59,15 @@ return_status user_command (struct pop3_command * command, struct client * clien
             }
         }
 
-        if (flag) {
-            if (i == arg_length) {
-                client->user_auth = true;
-                client->username = calloc(1,strlen(command->argument) + 1);
-                if (client->username == NULL) {
-                    return MEMORY_ALOC;
-                }
-                strcpy(client->username, command->argument);
-                // send(client->fd, "+OK\r\n", 6, 0);
-                return suscribe_ok(client);
-            } 
+        if (flag && buffer[i] == ' ' && i == arg_length) {
+            client->user_auth = true;
+            client->username = calloc(1,strlen(command->argument) + 1);
+            if (client->username == NULL) {
+                return MEMORY_ALOC;
+            }
+            strcpy(client->username, command->argument);
+            // send(client->fd, "+OK\r\n", 6, 0);
+            return suscribe_ok(client);
         }
     }
 
@@ -94,42 +92,40 @@ return_status pass_command (struct pop3_command * command, struct client * clien
 
             while (buffer[j] != 0 && buffer[j++] != ' ');
 
-            for(i=0; buffer[j]!=0 && command->argument[i]!= 0 && flag && i<arg_length && j<BUFSIZE; i++, j++) {
+            for(i=0; buffer[j]!=0 && buffer[j]!='\n' && command->argument[i]!= 0 && flag && i<arg_length && j<BUFSIZE; i++, j++) {
                 if (command->argument[i] != buffer[j]) {
                     flag = 0;
                 }
             }
 
-            if (flag) {
-                if (i == arg_length) {
-                    return_status ret = fill_mail(client);
-                    if (ret == OK_STATUS) {
-                        client->state = TRANSACTION;
-                        client->available_commands = transaction_command;
-                        client->available_commands_count = transaction_command_count;
-                        client->available_commands_functions = transaction_command_function;
-                        
-                        current = first_logged_in_user;
-                        logged_in * aux = calloc(1, sizeof(logged_in));
-                        aux->username = client->username;
+            if (flag && buffer[j] == '\n' && i==arg_length) {
+                return_status ret = fill_mail(client);
+                if (ret == OK_STATUS) {
+                    client->state = TRANSACTION;
+                    client->available_commands = transaction_command;
+                    client->available_commands_count = transaction_command_count;
+                    client->available_commands_functions = transaction_command_function;
+                    
+                    current = first_logged_in_user;
+                    logged_in * aux = calloc(1, sizeof(logged_in));
+                    aux->username = client->username;
 
-                        if (current == NULL)
-                        {
-                            first_logged_in_user = aux;
-                        }else{
-                            while (current->next != NULL){
-                                current = current->next;
-                            }
-                            current->next= aux;
+                    if (current == NULL)
+                    {
+                        first_logged_in_user = aux;
+                    }else{
+                        while (current->next != NULL){
+                            current = current->next;
                         }
-
-                        // send(client->fd, "+OK\r\n", 6, 0);
-                        return suscribe_ok(client);
-                    } else {
-                        //TODO: Check errors
-                        return ret;
+                        current->next= aux;
                     }
-                } 
+
+                    // send(client->fd, "+OK\r\n", 6, 0);
+                    return suscribe_ok(client);
+                } else {
+                    //TODO: Check errors
+                    return ret;
+                }
             }
         }
         client->user_auth = false;
@@ -146,7 +142,6 @@ return_status pass_command (struct pop3_command * command, struct client * clien
 
 return_status quit_auth_command (struct pop3_command * command, struct client * client) {
     // send(client->fd, "+OK Logging out\r\n", 18, 0);
-    current = first_logged_in_user;
 
     client->state = CLOSING;
     return suscribe_ok(client);
@@ -174,7 +169,7 @@ return_status quit_command (struct pop3_command * command, struct client * clien
 void remove_logged_user(struct client * client){
     current = first_logged_in_user;
 
-    if(client->username != NULL){
+    if(client->username != NULL && current!=NULL && current->username != NULL){
         if(strcmp(current->username, client->username) == 0 ){
             first_logged_in_user = current->next;
             free(current);
