@@ -97,8 +97,8 @@ int main(int argc, char *argv[]) {
             select_info.max_fd = monitor_server;
         }
         FD_SET(server_v6, &select_info.readfds);
-        if (select_info.max_fd < monitor_server) {
-            select_info.max_fd = monitor_server;
+        if (select_info.max_fd < server_v6) {
+            select_info.max_fd = server_v6;
         }
         for (int i=0; i<MAX_CLIENTS; i++) {
             if (clients[i] != NULL) {
